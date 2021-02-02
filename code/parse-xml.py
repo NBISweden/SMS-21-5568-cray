@@ -26,14 +26,14 @@ for transcript in root.iter('Iteration'):
 
         # Grab the gene name for the hit
         hit_def = hit.find('Hit_def').text
-        gene_idx = [s for s in hit_def.split(' ') if 'GN=' in s]
+        gene = [s for s in hit_def.split(' ') if 'GN=' in s]
 
         # Skip to next hit if no gene is present
-        if len(gene_idx) == 0:
+        if len(gene) == 0:
             continue
 
         # Strip gene name of unneeded string
-        gene = ''.join(gene_idx).replace('GN=', '')
+        gene = ''.join(gene).replace('GN=', '')
 
         # Print current [transcript, gene] pair to output file
         # (The assignment is only for muting the output of number of characters
