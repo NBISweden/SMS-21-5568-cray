@@ -3,4 +3,11 @@ channels:
     - bioconda
     - defaults
 dependencies:
-    - elementpath
+
+    # Languages
+    - nextflow=20.04.1
+    - python=3.6.12
+
+    # Python packages
+    - argparse=1.4.0
+    - elementpath=2.1.3

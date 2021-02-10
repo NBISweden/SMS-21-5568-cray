@@ -1,18 +1,30 @@
-import xml.etree.ElementTree as ET
+#!/usr/bin/env python
 import os
+import argparse
+import xml.etree.ElementTree as ET
 
-# Input and output files
-input_file = 'data/Trinity_SoF3I50bpF5_paired_mod.blast.xml'
-output_file = 'results/tx2gene.tsv'
+# Argument parser
+parser = argparse.ArgumentParser()
+parser.add_argument('input_file',
+                    type = str,
+                    help = 'Path to input BLAST XML file')
+parser.add_argument('output_file',
+                    type = str,
+                    help = 'Path to output tx2gene file')
+args = parser.parse_args()
 
-# Place in project root directory
-os.chdir('/Users/erik.fasterius/projects/5568-cray')
+#  # Input and output files
+#  input_file = 'data/Trinity_SoF3I50bpF5_paired_mod.blast.xml'
+#  output_file = 'results/tx2gene.tsv'
+#
+#  # Place in project root directory
+#  os.chdir('/Users/erik.fasterius/projects/5568-cray')
 
 # Open output file connection for writing
-output = open(output_file, 'w')
+output = open(args.output_file, 'w')
 
 # Read XML data from file
-tree = ET.parse(input_file)
+tree = ET.parse(args.input_file)
 root = tree.getroot()
 
 # Loop over each transcript ID
