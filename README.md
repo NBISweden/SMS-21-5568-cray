@@ -3,8 +3,9 @@
 This is the home of the NBIS support project with the Redmine issue \#5568,
 *"Single cell-RNA sequencing for identifying hemocyte subpopulations"*.
 
-A Conda environment specification is provided in the environment.yml file. Data
-is not stored in this repository.
+A Conda environment specification is provided in the environment.yml file and
+a Nextflow workflow allows reproducibility of the analyses. Data is not stored
+in this repository.
 
 ## Reproducibility
 
@@ -12,4 +13,7 @@ is not stored in this repository.
 # Create and activate the Conda environment
 conda env create -p 5568-env -f environment.yml
 conda activate 5568-env/
+
+# Run the workflow
+nextflow run .
 ```
