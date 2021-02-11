@@ -7,3 +7,6 @@
 # Data and results
 data/
 results/
+
+# Misc
+run.sh
