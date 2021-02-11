@@ -11,17 +11,16 @@ workflow {
     blast_xml = file("data/Trinity_SoF3I50bpF5_paired_mod.blast.xml")
     mito_fasta = file("data/NC_033509.fasta")
 
-    // Run workflow
+    // Run the workflow
     parse_xml(blast_xml)
     add_mitochondrion(transcript_fasta,
                       mito_fasta,
                       parse_xml.out.tx2gene_pre_mito)
-
+    salmon_index(add_mitochondrion.out.fasta)
 }
 
 // Process to parse the BLAST XML file and get initial tx2gene file
 process parse_xml {
-
     input:
     path(blast_xml)
 
@@ -53,5 +52,25 @@ process add_mitochondrion {
     cat ${transcript_fasta} > pacifastacus-leniusculus.fasta
     cat ${mito_fasta} >> pacifastacus-leniusculus.fasta
     cat ${tx2gene_pre_mito} <(printf "NC_033509\tMT-NC_033509\n") > tx2gene.tsv
+    """
+}
+
+// Process to index the transcriptome for use in downstream analyses
+process salmon_index {
+    publishDir "${resultsdir}/idx/",
+        mode: "copy"
+
+    input:
+    path(fasta)
+
+    output:
+    path("salmon_index", emit: index)
+
+    script:
+    """
+    salmon index \
+        --transcripts ${fasta} \
+        --kmerLen 31 \
+        --index "salmon_index"
     """
 }
