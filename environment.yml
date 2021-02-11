@@ -4,6 +4,9 @@ channels:
     - defaults
 dependencies:
 
+    # Command-line packages
+    - salmon=1.4.0
+
     # Languages
     - nextflow=20.04.1
     - python=3.6.12
