@@ -9,6 +9,10 @@ in this repository.
 
 ## Reproducibility
 
+The transcriptome FASTA and BLAST XML files used in these analyses come directly
+from the Söderhall group's previous work, while the mitochondrion genome can be
+found at the [NCBI website](https://www.ncbi.nlm.nih.gov/nuccore/NC_033509.1/).
+
 ```bash
 # Create and activate the Conda environment
 conda env create -p 5568-env -f environment.yml
