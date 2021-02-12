@@ -9,7 +9,7 @@ workflow {
     // References and annotations
     transcript_fasta = file("data/Trinity_SoF3I50bpF5_paired_mod.fasta")
     blast_xml = file("data/Trinity_SoF3I50bpF5_paired_mod.blast.xml")
-    mito_fasta = file("data/NC_033509.fasta")
+    mitochondrion_fasta = file("data/NC_033509.fasta")
 
     // Create channels for each read pair across lanes
     Channel
@@ -20,47 +20,49 @@ workflow {
         .set{raw_reads_R2}
 
     // Run the workflow
-    parse_xml(blast_xml)
-    add_mitochondrion(transcript_fasta,
-                      mito_fasta,
-                      parse_xml.out.tx2gene_pre_mito)
-    salmon_index(add_mitochondrion.out.fasta)
-    concatenate_lanes(raw_reads_R1, raw_reads_R2)
+    build_tx2gene_and_fasta(blast_xml,
+                  transcript_fasta,
+                  mitochondrion_fasta)
+    salmon_index(build_tx2gene_and_fasta.out.fasta)
+    concatenate_lanes(raw_reads_R1,
+                      raw_reads_R2)
 }
 
-// Parse the BLAST XML file and get initial tx2gene file
-process parse_xml {
+// Build the tx2gene mapping and transcriptome + mitochondrion FASTA
+process build_tx2gene_and_fasta {
     input:
     path(blast_xml)
-
-    output:
-    path("tx2gene-pre-mito.tsv", emit: tx2gene_pre_mito)
-
-    script:
-    """
-    parse-xml.py ${blast_xml} tx2gene-pre-mito.tsv
-    """
-}
-
-// Add mitochondrion genome to FASTA and tx2gene files
-process add_mitochondrion {
-    publishDir "${resultsdir}/idx/",
-        mode: "copy"
-
-    input:
     path(transcript_fasta)
-    path(mito_fasta)
-    path(tx2gene_pre_mito)
+    path(mitochondrion_fasta)
 
     output:
-    path("pacifastacus-leniusculus.fasta", emit: fasta)
     path("tx2gene.tsv", emit: tx2gene)
+    path("pacifastacus-leniusculus.fasta", emit: fasta)
 
     script:
     """
+    # Parse the BLAST XML file and grab existing annotations
+    parse-xml.py ${blast_xml} tx2gene-annotated.tsv
+
+    # Add transcripts without gene annotations
+    join -a1 -a2 -e- \
+        <(sort -k1,1 tx2gene-annotated.tsv) \
+        <(grep ">" ${transcript_fasta} | sed 's/>//g' | sort -k1,1) \
+        > tx2gene-joined.tsv
+
+    # Add transcript IDs as gene IDs when no annotation is available
+    paste \
+        <(cut -d ' ' -f 1 tx2gene-joined.tsv) \
+        <(cut -d ' ' -f 2 tx2gene-joined.tsv) \
+        > tx2gene-pre-mito.tsv
+
+    # Add mitochondrion genome entry to tx2gene
+    cat tx2gene-pre-mito.tsv <(printf "NC_033509.1\tMT-NC_033509\n") \
+        > tx2gene.tsv
+
+    # Concatenate transcriptome and mitochondrion genome
     cat ${transcript_fasta} > pacifastacus-leniusculus.fasta
-    cat ${mito_fasta} >> pacifastacus-leniusculus.fasta
-    cat ${tx2gene_pre_mito} <(printf "NC_033509\tMT-NC_033509\n") > tx2gene.tsv
+    cat ${mitochondrion_fasta} >> pacifastacus-leniusculus.fasta
     """
 }
 
