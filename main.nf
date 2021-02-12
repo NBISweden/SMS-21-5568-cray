@@ -1,15 +1,23 @@
 #!/usr/bin/env nextflow
 nextflow.preview.dsl=2
 
-// Results directory
+// Workflow paths
 resultsdir = "results/"
 
 // Main workflow
 workflow {
-    // Input files
+    // References and annotations
     transcript_fasta = file("data/Trinity_SoF3I50bpF5_paired_mod.fasta")
     blast_xml = file("data/Trinity_SoF3I50bpF5_paired_mod.blast.xml")
     mito_fasta = file("data/NC_033509.fasta")
+
+    // Create channels for each read pair across lanes
+    Channel
+        .fromFilePairs("data/*F2_1/*_L00{1,2}_R1_*.fastq.gz")
+        .set{raw_reads_R1}
+    Channel
+        .fromFilePairs("data/*F2_1/*_L00{1,2}_R2_*.fastq.gz")
+        .set{raw_reads_R2}
 
     // Run the workflow
     parse_xml(blast_xml)
@@ -17,9 +25,10 @@ workflow {
                       mito_fasta,
                       parse_xml.out.tx2gene_pre_mito)
     salmon_index(add_mitochondrion.out.fasta)
+    concatenate_lanes(raw_reads_R1, raw_reads_R2)
 }
 
-// Process to parse the BLAST XML file and get initial tx2gene file
+// Parse the BLAST XML file and get initial tx2gene file
 process parse_xml {
     input:
     path(blast_xml)
@@ -33,7 +42,7 @@ process parse_xml {
     """
 }
 
-// Process to add mitochondrion genome to FASTA and tx2gene files
+// Add mitochondrion genome to FASTA and tx2gene files
 process add_mitochondrion {
     publishDir "${resultsdir}/idx/",
         mode: "copy"
@@ -55,7 +64,7 @@ process add_mitochondrion {
     """
 }
 
-// Process to index the transcriptome for use in downstream analyses
+// Index the transcriptome for use in downstream analyses
 process salmon_index {
     publishDir "${resultsdir}/idx/",
         mode: "copy"
@@ -64,7 +73,7 @@ process salmon_index {
     path(fasta)
 
     output:
-    path("salmon_index", emit: index)
+    path("salmon_index", emit: salmon_index)
 
     script:
     """
@@ -72,5 +81,28 @@ process salmon_index {
         --transcripts ${fasta} \
         --kmerLen 31 \
         --index "salmon_index"
+    """
+}
+
+// Concatenate per-sample reads across sequencing lanes
+process concatenate_lanes {
+    tag "${sample_name}"
+    publishDir "${resultsdir}/fastq/",
+        mode: "copy"
+
+    input:
+    tuple val(sample_name_R1), path(sample_and_lane_fastq_R1)
+    tuple val(sample_name_R2), path(sample_and_lane_fastq_R2)
+
+    output:
+    tuple val(sample_name), path("*.fastq.gz"), emit: concatenated_reads
+
+    script:
+    sample_name = sample_name_R1
+    """
+    zcat ${sample_and_lane_fastq_R1[0]} ${sample_and_lane_fastq_R1[1]} \
+        | gzip > ${sample_name}_R1.fastq.gz
+    zcat ${sample_and_lane_fastq_R2[0]} ${sample_and_lane_fastq_R2[1]} \
+        | gzip > ${sample_name}_R2.fastq.gz
     """
 }
