@@ -13,10 +13,10 @@ workflow {
 
     // Create channels for each read pair across lanes
     Channel
-        .fromFilePairs("data/*F2_1/*_L00{1,2}_R1_*.fastq.gz")
+        .fromFilePairs("data/*/*_L00{1,2}_R1_*.fastq.gz")
         .set{raw_reads_R1}
     Channel
-        .fromFilePairs("data/*F2_1/*_L00{1,2}_R2_*.fastq.gz")
+        .fromFilePairs("data/*/*_L00{1,2}_R2_*.fastq.gz")
         .set{raw_reads_R2}
 
     // Run the workflow
@@ -26,6 +26,9 @@ workflow {
     salmon_index(build_tx2gene_and_fasta.out.fasta)
     concatenate_lanes(raw_reads_R1,
                       raw_reads_R2)
+    quantify_expression(concatenate_lanes.out.concatenated_reads,
+                        salmon_index.out.salmon_index,
+                        build_tx2gene_and_fasta.out.tx2gene)
 }
 
 // Build the tx2gene mapping and transcriptome + mitochondrion FASTA
@@ -106,5 +109,32 @@ process concatenate_lanes {
         | gzip > ${sample_name}_R1.fastq.gz
     zcat ${sample_and_lane_fastq_R2[0]} ${sample_and_lane_fastq_R2[1]} \
         | gzip > ${sample_name}_R2.fastq.gz
+    """
+}
+
+// Quantify the raw reads with Alevin
+process quantify_expression {
+    tag "${sample_name}"
+    publishDir "${resultsdir}/expression/",
+        mode: "copy"
+
+    input:
+    tuple val(sample_name), path(sample_fastq)
+    path(salmon_index)
+    path(tx2gene)
+
+    output:
+    path("${sample_name}", emit: alevin_output)
+
+    script:
+    """
+    salmon alevin \
+        --libType ISR \
+        --mates1 ${sample_fastq[0]} \
+        --mates2 ${sample_fastq[1]} \
+        --chromiumV3 \
+        --index ${salmon_index} \
+        --output ${sample_name} \
+        --tgMap ${tx2gene}
     """
 }
