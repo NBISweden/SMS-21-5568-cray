@@ -135,6 +135,7 @@ process quantify_expression {
         --chromiumV3 \
         --index ${salmon_index} \
         --output ${sample_name} \
-        --tgMap ${tx2gene}
+        --tgMap ${tx2gene} \
+        --dumpFeatures
     """
 }
