@@ -11,6 +11,9 @@ dependencies:
     - nextflow=20.04.1
     - python=3.6.12
 
+    # R packages
+    - bioconductor-alevinQC=1.6.0
+
     # Python packages
     - argparse=1.4.0
     - elementpath=2.1.3

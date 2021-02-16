@@ -29,6 +29,7 @@ workflow {
     quantify_expression(concatenate_lanes.out.concatenated_reads,
                         salmon_index.out.salmon_index,
                         build_tx2gene_and_fasta.out.tx2gene)
+    alevin_quality_controls(quantify_expression.out.alevin_output)
 }
 
 // Build the tx2gene mapping and transcriptome + mitochondrion FASTA
@@ -124,7 +125,7 @@ process quantify_expression {
     path(tx2gene)
 
     output:
-    path("${sample_name}", emit: alevin_output)
+    tuple val(sample_name), path("${sample_name}"), emit: alevin_output
 
     script:
     """
@@ -137,5 +138,31 @@ process quantify_expression {
         --output ${sample_name} \
         --tgMap ${tx2gene} \
         --dumpFeatures
+    """
+}
+
+// Perform basic quality controls of the Alevin gene expression data
+process alevin_quality_controls {
+    tag "${sample_name}"
+    publishDir "${resultsdir}/expression/${sample_name}",
+        mode: "copy"
+
+    input:
+    tuple val(sample_name), path(alevin_output)
+
+    output:
+    path("alevinReport.${sample_name}.html")
+
+    script:
+    """
+    #!/usr/bin/env Rscript
+    library("alevinQC")
+    alevinQCReport(baseDir        = "${sample_name}",
+                   outputDir      = "./",
+                   ignorePandoc   = TRUE,
+                   forceOverwrite = TRUE,
+                   outputFormat   = "html_document",
+                   sampleId       = "${sample_name}",
+                   outputFile     = "alevinReport.${sample_name}.html")
     """
 }
