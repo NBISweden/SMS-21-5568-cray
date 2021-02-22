@@ -4,8 +4,51 @@ nextflow.preview.dsl=2
 // Workflow paths
 resultsdir = "results/"
 
-// Main workflow
+// Analysis workflow
 workflow {
+    // Report files
+    report_1_qc = file("bin/report_1_quality_controls.Rmd")
+
+    // Input files
+    Channel
+        .fromPath("results/expression/TJ-2700-1_S1")
+        // .fromPath("results/expression/TJ-2700-*")
+        .toList()
+        .set{gene_expression}
+
+    // Run the workflow
+    quality_controls(report_1_qc, gene_expression)
+}
+
+// Basic QC plots and filtering
+process quality_controls {
+    publishDir "${resultsdir}/seurat/01-quality_controls/",
+        mode: "copy"
+
+    input:
+    path(report)
+    path(gene_expression)
+
+    output:
+    path("report_1_quality_controls.html")
+    path("seurat-qc.rds")
+
+    script:
+    """
+    #!/usr/bin/env Rscript
+    parameters <- list(root_directory  = getwd(),
+                       gene_expression = "${gene_expression}",
+                       seurat_object   = "seurat-qc.rds")
+    output_report <- gsub(".Rmd", ".html", basename("${report}"))
+    rmarkdown::render("${report}",
+                      params      = parameters,
+                      output_dir  = getwd(),
+                      output_file = output_report)
+    """
+}
+
+// Pre-processing workflow
+workflow pre_processing {
     // References and annotations
     transcript_fasta = file("data/Trinity_SoF3I50bpF5_paired_mod.fasta")
     blast_xml = file("data/Trinity_SoF3I50bpF5_paired_mod.blast.xml")

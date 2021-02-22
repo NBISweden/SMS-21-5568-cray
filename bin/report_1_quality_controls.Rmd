@@ -1,0 +1,76 @@
+---
+params:
+    root_directory: NULL
+    gene_expression: NULL
+    seurat_object: NULL
+title: "NBIS Support #5568"
+subtitle: "Quality controls and filtering"
+author: "Erik Fasterius"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+html_document:
+    code_folding: hide
+    toc: true
+    toc_float:
+        collapsed: true
+---
+
+```{r Setup}
+# Knit options
+knitr::opts_knit$set(root.dir = params$root_directory)
+
+# Chunk options
+knitr::opts_chunk$set(fig.width  = 12,
+                      fig.height = 8,
+                      fig.align  = "center",
+                      message    = FALSE,
+                      warning    = FALSE,
+                      results    = "asis")
+```
+
+```{r Load packages}
+suppressPackageStartupMessages({
+    library("tximport")
+    library("Seurat")
+    library("tidyverse")
+})
+```
+
+```{r Read gene expression data}
+# Read data
+files <- file.path(params$gene_expression, "alevin/quants_mat.gz")
+txi <- tximport(files, type = "alevin")
+
+# Create the Seurat object
+s_obj <- CreateSeuratObject(counts       = txi$counts,
+                            # min.cells    = 3,
+                            # min.features = 200,
+                            project      = "5568-cray")
+```
+
+# Unfiltered data
+
+```{r Pre-processing}
+# Normalise data
+s_obj <- NormalizeData(s_obj,
+                       normalization.method = "LogNormalize",
+                       scale.factor         = 10000)
+
+# Find highest variable features
+s_obj <- FindVariableFeatures(s_obj, selection.method = "vst", nfeatures = 2000)
+
+# Scale data
+all_genes <- rownames(s_obj)
+s_obj <- ScaleData(s_obj, features = all_genes)
+
+# Dimensionality reduction
+s_obj <- RunPCA(s_obj, features = VariableFeatures(object = s_obj))
+s_obj <- FindNeighbors(s_obj, dims = 1:10)
+s_obj <- FindClusters(s_obj, resolution = 0.5)
+s_obj <- RunUMAP(s_obj, dims = 1:10)
+DimPlot(s_obj, reduction = "umap")
+```
+
+```{r Save to RDS}
+save(s_obj, file = params$seurat_object)
+```
