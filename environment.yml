@@ -14,6 +14,7 @@ dependencies:
 
     # R packages
     - bioconductor-alevinQC=1.2.0
+    - bioconductor-fishpond=1.2.0
     - bioconductor-tximport=1.14.0
     - r-seurat=3.2.3
     - r-tidyverse=1.3.0
