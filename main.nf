@@ -11,8 +11,7 @@ workflow {
 
     // Input files
     Channel
-        .fromPath("results/expression/TJ-2700-1_S1")
-        // .fromPath("results/expression/TJ-2700-*")
+        .fromPath("results/expression/TJ-2700-*/", type: "dir")
         .toList()
         .set{gene_expression}
 
