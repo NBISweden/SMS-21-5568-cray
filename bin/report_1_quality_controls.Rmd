@@ -1,8 +1,8 @@
 ---
 params:
     root_directory: NULL
-    gene_expression: NULL
-    seurat_object: NULL
+    input_seurat_object: NULL
+    output_seurat_object: NULL
 title: "NBIS Support #5568"
 subtitle: "Quality controls and filtering"
 author: "Erik Fasterius"
@@ -30,10 +30,15 @@ knitr::opts_chunk$set(fig.width  = 12,
 
 ```{r Load packages}
 suppressPackageStartupMessages({
+    library("cowplot")
     library("tximport")
     library("Seurat")
     library("tidyverse")
 })
+```
+
+```{r Read data}
+s_obj <- readRDS(params$input_seurat_object)
 ```
 
 # Unfiltered data
@@ -42,53 +47,47 @@ The following plots are performed on the raw, unfiltered expression data, with
 the sole exception of reading in the data itself, which has been filtered to
 exclude features (*i.e.* genes or transcripts, depending on the available
 annotation) that are expressed in fewer than 3 cells, as well as excluding
-cells which have fewer than 100 features.
+cells which have fewer than 10 features.
 
-```{r Read gene expression data}
-# Function for creating Seurat objects
-create_seurat_object <- function(file) {
+## Quality controls
 
-    # Get sample name from the file name
-    sample_name <- strsplit(file, "/")[[1]][1]
-
-    # Import data
-    txi <- tximport(file, type = "alevin")
-
-    # Create the Seurat object
-    s_obj <- CreateSeuratObject(counts       = txi$counts,
-                                min.cells    = 3,
-                                min.features = 100,
-                                project      = sample_name)
-    return(s_obj)
-}
-
-# List all expression files
-# files <- list.files("results/expression/")
-# files <- file.path("results/expression", files, "alevin/quants_mat.gz")
-files <- sort(strsplit(params$gene_expression, " ")[[1]])
-files <- file.path(files, "alevin/quants_mat.gz")
-
-# Create individual Seurat objects
-s1 <- create_seurat_object(files[1])
-s2 <- create_seurat_object(files[2])
-s3 <- create_seurat_object(files[3])
-s4 <- create_seurat_object(files[4])
-s5 <- create_seurat_object(files[5])
-s6 <- create_seurat_object(files[6])
-s7 <- create_seurat_object(files[7])
-s8 <- create_seurat_object(files[8])
-
-# Merge all Seurat objects (using individual cell name prefixes)
-s_obj <- merge(s1,
-               y            = c(s2, s3, s4, s5, s6, s7, s8),
-               add.cell.ids = c("S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"))
-
-# Cleanup
-rm(s1, s2, s3, s4, s5, s6, s7, s8)
-invisible(gc())
-```
+The genes used for cell cycle scoring are the default list of human genes.
 
 ```{r Normalisation and basic quality controls}
+# Function for plotting basic QC metrics
+plot_qc <- function(s_obj) {
+
+    # Plot QC stats
+    features <- c("nFeature_RNA", "nCount_RNA", "percent_mito", "percent_ribo",
+                  "S.Score", "G2M.Score")
+    VlnPlot(s_obj,
+            group.by = "orig.ident",
+            features = features,
+            pt.size  = 0.1,
+            ncol     = 2) +
+        NoLegend()
+
+    # Plot features vs. counts
+    FeatureScatter(s_obj,
+                   "nCount_RNA",
+                   "nFeature_RNA",
+                   group.by = "orig.ident",
+                   pt.size  = 0.5) +
+        theme(plot.title = element_text(hjust = 0.5)) +
+        ggtitle("Counts vs. features")
+
+    # Find and plot the top 20 highest variable features
+    s_obj_tmp <- FindVariableFeatures(s_obj,
+                                      selection.method = "vst",
+                                      nfeatures        = 20)
+    top_20 <- head(VariableFeatures(s_obj_tmp), 20)
+    LabelPoints(plot   = VariableFeaturePlot(s_obj_tmp),
+                points = top_20,
+                repel  = TRUE) +
+        theme(plot.title = element_text(hjust = 0.5)) +
+        ggtitle("Top 20 variable features")
+}
+
 # Normalise data
 s_obj <- NormalizeData(s_obj,
                        normalization.method = "LogNormalize",
@@ -103,45 +102,19 @@ s_obj <- CellCycleScoring(s_obj,
                           g2m.features = cc.genes$g2m.genes,
                           s.features   = cc.genes$s.genes)
 
-# Plot QC stats
-features <- c("nFeature_RNA", "nCount_RNA", "percent_mito", "percent_ribo",
-              "S.Score", "G2M.Score")
-VlnPlot(s_obj,
-        group.by = "orig.ident",
-        features = features,
-        pt.size  = 0.1,
-        ncol     = 2) +
-    NoLegend()
-
-# Plot features vs. counts
-FeatureScatter(s_obj,
-               "nCount_RNA",
-               "nFeature_RNA",
-               group.by = "orig.ident",
-               pt.size  = 0.5) +
-    theme(plot.title = element_text(hjust = 0.5)) +
-    ggtitle("Counts vs. features")
-
-# Find and plot the top 20 highest variable features
-s_obj_tmp <- FindVariableFeatures(s_obj,
-                                  selection.method = "vst",
-                                  nfeatures        = 20)
-top_20 <- head(VariableFeatures(s_obj_tmp), 20)
-LabelPoints(plot   = VariableFeaturePlot(s_obj_tmp),
-            points = top_20,
-            repel  = TRUE) +
-    theme(plot.title = element_text(hjust = 0.5)) +
-    ggtitle("Top 20 variable features")
+# Plot QC metrics
+plot_qc(s_obj)
 ```
+
+## Clustering
 
 ```{r Variable genes, scaling and dimensionality reduction}
 # Function for trying out different number of variable genes
 dimensionality_reduction <- function(s_obj,
-                                     nfeatures  = 2000,
+                                     nfeatures  = 3000,
+                                     npcs       = 100,
+                                     dims       = 1:50,
                                      resolution = 0.8) {
-
-    # Print header
-    cat(paste0("\n\n## nFeatures = ", nfeatures, "\n\n"))
 
     # Find the highest variable features
     s_obj <- FindVariableFeatures(s_obj,
@@ -154,23 +127,47 @@ dimensionality_reduction <- function(s_obj,
                        assay           = "RNA",
                        vars.to.regress = to_regress)
 
-    # Dimensionality reduction
-    s_obj <- RunPCA(s_obj, features = VariableFeatures(object = s_obj))
-    s_obj <- FindNeighbors(s_obj, dims = 1:10, verbose = FALSE)
-    s_obj <- FindClusters(s_obj, resolution = resolution, verbose = FALSE)
-    s_obj <- RunUMAP(s_obj, dims = 1:10, verbose = FALSE)
+    # Dimensionality reduction and clustering
+    s_obj <- RunPCA(s_obj,
+                    npcs     = npcs,
+                    features = VariableFeatures(object = s_obj))
+    s_obj <- FindNeighbors(s_obj,
+                           reduction = "pca",
+                           dims      = dims,
+                           verbose   = FALSE)
+    s_obj <- FindClusters(s_obj,
+                          reduction  = "pca",
+                          resolution = resolution,
+                          verbose    = FALSE)
 
-    # Plots
-    gg <- DimPlot(s_obj, reduction = "umap")
+    # Run and plot UMAP
+    s_obj <- RunUMAP(s_obj,
+                     dims                 = dims,
+                     min.dist             = 0.01,
+                     spread               = 0.3,
+                     metric               = "cosine",
+                     n.neighbors          = 15,
+                     repulsion.strength   = 0.5,
+                     negative.sample.rate = 20,
+                     n.epochs             = 100,
+                     verbose              = FALSE)
+    gg1 <- DimPlot(s_obj, reduction = "umap", group.by = "orig.ident") +
+        ggtitle("Samples")
+    gg2 <- DimPlot(s_obj, reduction = "umap", group.by = "seurat_clusters") +
+        ggtitle("Clusters")
+    gg <- plot_grid(gg1, gg2, ncol = 1)
+    show(gg)
+
+    # Plot selected features on UMAP
+    features <- c("nCount_RNA", "nFeature_RNA", "percent_mito",
+                  "percent_ribo", "S.Score", "G2M.Score")
+    gg <- FeaturePlot(s_obj, reduction = "umap", features = features)
     show(gg)
 }
 
-# Loop through different number of variable genes
-for (nfeatures in c(100, 500, 1000, 2000, 3000)) {
-    dimensionality_reduction(s_obj, nfeatures = nfeatures)
-}
+dimensionality_reduction(s_obj, nfeatures = 2000)
 ```
 
 ```{r Save to RDS}
-save(s_obj, file = params$seurat_object)
+save(s_obj, file = params$output_seurat_object)
 ```

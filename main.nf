@@ -16,7 +16,25 @@ workflow {
         .set{gene_expression}
 
     // Run the workflow
-    quality_controls(report_1_qc, gene_expression)
+    merge_cells(gene_expression)
+    quality_controls(report_1_qc, merge_cells.out.seurat_object)
+}
+
+// Merge same-sample cells
+process merge_cells {
+    publishDir "${resultsdir}/seurat/01-merged-cells",
+        mode: "copy"
+
+    input:
+    path(gene_expression)
+
+    output:
+    path("seurat-merged.rds", emit: seurat_object)
+
+    script:
+    """
+    merge_cells.R "${gene_expression}" "seurat-merged.rds"
+    """
 }
 
 // Basic QC plots and filtering
@@ -26,7 +44,7 @@ process quality_controls {
 
     input:
     path(report)
-    path(gene_expression)
+    path(seurat_object)
 
     output:
     path("report_1_quality_controls.html")
@@ -36,8 +54,8 @@ process quality_controls {
     """
     #!/usr/bin/env Rscript
     parameters <- list(root_directory  = getwd(),
-                       gene_expression = "${gene_expression}",
-                       seurat_object   = "seurat-qc.rds")
+                       input_seurat_object  = "${seurat_object}",
+                       output_seurat_object = "seurat-qc.rds")
     output_report <- gsub(".Rmd", ".html", basename("${report}"))
     rmarkdown::render("${report}",
                       params      = parameters,
