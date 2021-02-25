@@ -41,6 +41,61 @@ suppressPackageStartupMessages({
 s_obj <- readRDS(params$input_seurat_object)
 ```
 
+```{r Plotting functions}
+# Function for plotting basic QC metrics
+plot_qc_metrics <- function(s_obj) {
+    features <- c("nFeature_RNA", "nCount_RNA", "percent_mito", "percent_ribo",
+                  "S.Score", "G2M.Score")
+    gg <- VlnPlot(s_obj,
+                  group.by = "orig.ident",
+                  features = features,
+                  pt.size  = 0.1,
+                  ncol     = 2) +
+        NoLegend()
+    show(gg)
+}
+
+# Function for plotting features versus counts
+plot_features_vs_counts <- function(s_obj) {
+    gg <- FeatureScatter(s_obj,
+                         "nCount_RNA",
+                         "nFeature_RNA",
+                         group.by = "orig.ident",
+                         pt.size  = 0.5) +
+        theme(plot.title = element_text(hjust = 0.5)) +
+        ggtitle("Counts vs. features")
+    show(gg)
+}
+
+# Function for plotting the top 20 highest variable features
+plot_hvg <- function(s_obj) {
+    s_obj_tmp <- FindVariableFeatures(s_obj,
+                                      selection.method = "vst",
+                                      nfeatures        = 20)
+    top_20 <- head(VariableFeatures(s_obj_tmp), 20)
+    gg <- LabelPoints(plot   = VariableFeaturePlot(s_obj_tmp),
+                      points = top_20,
+                      repel  = TRUE) +
+        theme(plot.title = element_text(hjust = 0.5)) +
+        ggtitle("Top 20 variable features")
+    show(gg)
+}
+
+# Function for plotting the top 20 percentage counts per gene
+plot_highest_percentages <- function(s_obj) {
+    counts <- s_obj@assays$RNA@counts
+    counts <- Matrix::t(Matrix::t(counts) / Matrix::colSums(counts)) * 100
+    most_expressed <- order(apply(counts, 1, median), decreasing = TRUE)[20:1]
+    most_expressed <- as.matrix(Matrix::t(counts[most_expressed, ]))
+    par(mar = c(4, 10, 2, 1))
+    boxplot(most_expressed,
+            cex  = 0.1,
+            las  = 1,
+            xlab = "% total count per cell",
+            col  = scales::hue_pal()(20)[20:1], horizontal = TRUE)
+}
+```
+
 # Unfiltered data
 
 The following plots are performed on the raw, unfiltered expression data, with
@@ -51,55 +106,7 @@ cells which have fewer than 10 features.
 
 ## Quality controls
 
-The genes used for cell cycle scoring are the default list of human genes.
-
 ```{r Normalisation and basic quality controls}
-# Function for plotting basic QC metrics
-plot_qc <- function(s_obj) {
-
-    # Plot QC stats
-    features <- c("nFeature_RNA", "nCount_RNA", "percent_mito", "percent_ribo",
-                  "S.Score", "G2M.Score")
-    VlnPlot(s_obj,
-            group.by = "orig.ident",
-            features = features,
-            pt.size  = 0.1,
-            ncol     = 2) +
-        NoLegend()
-
-    # Plot features vs. counts
-    FeatureScatter(s_obj,
-                   "nCount_RNA",
-                   "nFeature_RNA",
-                   group.by = "orig.ident",
-                   pt.size  = 0.5) +
-        theme(plot.title = element_text(hjust = 0.5)) +
-        ggtitle("Counts vs. features")
-
-    # Find and plot the top 20 highest variable features
-    s_obj_tmp <- FindVariableFeatures(s_obj,
-                                      selection.method = "vst",
-                                      nfeatures        = 20)
-    top_20 <- head(VariableFeatures(s_obj_tmp), 20)
-    LabelPoints(plot   = VariableFeaturePlot(s_obj_tmp),
-                points = top_20,
-                repel  = TRUE) +
-        theme(plot.title = element_text(hjust = 0.5)) +
-        ggtitle("Top 20 variable features")
-
-    # Plot the top 20 percentage counts per gene
-    counts <- s_obj@assays$RNA@counts
-    counts <- Matrix::t(Matrix::t(counts) / Matrix::colSums(counts)) * 100
-    most_expressed <- order(apply(counts, 1, median), decreasing = TRUE)[20:1]
-    most_expressed <- as.matrix(Matrix::t(counts[most_expressed, ]))
-    par(mar = c(4, 10, 2, 1))
-    boxplot(most_expressed,
-            cex = 0.1,
-            las = 1,
-            xlab = "% total count per cell",
-            col = scales::hue_pal()(20)[20:1], horizontal = TRUE)
-}
-
 # Normalise data
 s_obj <- NormalizeData(s_obj,
                        normalization.method = "LogNormalize",
@@ -113,14 +120,63 @@ s_obj[["percent_ribo"]] <- PercentageFeatureSet(s_obj, pattern = "^RP[SL]")
 s_obj <- CellCycleScoring(s_obj,
                           g2m.features = cc.genes$g2m.genes,
                           s.features   = cc.genes$s.genes)
+```
 
-# Plot QC metrics
-plot_qc(s_obj)
+The first plot shows the distribution of the basic QC metrics across the two
+samples, here names `S1` and `S2`. There are fewer features expressed per cell
+in the first sample compared to the second (`nFeature_RNA`), while the first
+sample has a higher number of reads per feature (`nCount_RNA`). The proportion
+of mitochondrial reads (`percent_mito`) are relatively large, especially for
+the second sample, while the proportion of ribosomal reads (`percent_ribo`) are
+more reasonable (though sample two is still higher). Cell cycle scores (based
+on the standard human gene names; `S.Score` and `G2M.Score`) are similar for
+the two samples.
+
+```{r Plot basic QC metrics}
+plot_qc_metrics(s_obj)
+```
+
+The second plot shows a similar thing as the above regarding counts and
+features: the first sample seems to be of generally lower quality with a
+potentially less complex library (fewer features with more counts per feature).
+
+```{r Features vs. counts}
+plot_features_vs_counts(s_obj)
+```
+
+The third plot just highlights the top 20 most highly variable genes:
+
+```{r Plot highest variable genes}
+plot_hvg(s_obj)
+```
+
+The fourth plot shows the genes with the highest proportion of counts per cell.
+Some of these are mitochondrial and ribosomal genes, indicating possible low
+quality cells. Other genes of interest are `pol`, `NIrc3`, `His3` and the
+un-annotated `comp36811-c0-seq6` transcript.
+
+```{r Plot highest counts per cell}
+plot_highest_percentages(s_obj)
 ```
 
 ## Clustering
 
-```{r Variable genes, scaling and dimensionality reduction}
+We now cluster the unfiltered cells, to give us a baseline to work with. The
+first figure shows the clustering with the cells coloured by their sample,
+showing that the largest driving factor of the clustering here seems to be the
+sample of origin. There are some cells from both samples that cluster with the
+other, however. The second figure shows the clustering coloured by the clusters
+themselves, all 17 of them.
+
+We then want to see if any of the clusters are driven by any of the QC metrics
+we already investigated above - this is what the last plot (with six panels)
+show. While there is some variation in how the various QC metrics are
+distributed across the cells and clusters, none of them stand out as a
+particular driver of the clustering. This may be because that the effect of the
+samples overcome any effect the QC metrics (*i.e.* cell quality) may have on
+the clustering in this particular instance.
+
+```{r Variable genes, scaling and clustering, fig.height = 16}
 # Function for trying out different number of variable genes
 cluster_cells <- function(s_obj,
                           nfeatures  = 3000,
@@ -177,9 +233,10 @@ cluster_cells <- function(s_obj,
     show(gg)
 }
 
+# Perform clustering
 cluster_cells(s_obj, nfeatures = 2000)
 ```
 
 ```{r Save to RDS}
-save(s_obj, file = params$output_seurat_object)
+saveRDS(s_obj, file = params$output_seurat_object)
 ```
