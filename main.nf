@@ -22,7 +22,7 @@ workflow {
 
 // Merge same-sample cells
 process merge_cells {
-    publishDir "${resultsdir}/seurat/01-merged-cells",
+    publishDir "${resultsdir}/seurat/00-merged-cells",
         mode: "copy"
 
     input:
