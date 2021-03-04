@@ -20,7 +20,10 @@ The analyses can be reproduced using either Docker or Conda.
 # Build the Docker image
 docker build -t nbis-5568 .
 
-# Run the workflow
+# Run the pre-processing workflow
+nextflow run . -use-docker nbis-5568 -entry pre_processing
+
+# Run the analysis workflow
 nextflow run . -use-docker nbis-5568
 ```
 
@@ -31,6 +34,9 @@ nextflow run . -use-docker nbis-5568
 conda env create -p 5568-env -f environment.yml
 conda activate 5568-env/
 
-# Run the workflow
+# Run the pre-processing workflow
+nextflow run . -entry pre_processing
+
+# Run the analysis workflow
 nextflow run .
 ```
