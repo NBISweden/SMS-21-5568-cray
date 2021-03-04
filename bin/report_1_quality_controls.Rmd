@@ -241,6 +241,41 @@ cluster_cells <- function(s_obj,
 s_obj <- cluster_cells(s_obj, nfeatures = 2000)
 ```
 
+# Filtered data
+
+We now perform filtering of a number of the above mentioned quality parameters.
+
+```{r Filter data}
+# Filter based on features and counts
+to_keep_features <- WhichCells(s_obj, expression = nFeature_RNA < 3000)
+to_keep_counts <- WhichCells(s_obj, expression = nCount_RNA < 40000)
+s_obj <- subset(s_obj, cells = to_keep_features)
+s_obj <- subset(s_obj, cells = to_keep_counts)
+
+# Filter based on mitochondrial/ribosomal content
+to_keep_mito <- WhichCells(s_obj, expression = percent_mito < 30)
+to_keep_ribo <- WhichCells(s_obj, expression = percent_ribo < 7.5)
+s_obj <- subset(s_obj, cells = to_keep_mito)
+s_obj <- subset(s_obj, cells = to_keep_ribo)
+
+# Filter based on cell cycle scores
+to_keep_sscore <- WhichCells(s_obj, expression = S.Score < 0.3)
+to_keep_g2mscore <- WhichCells(s_obj, expression = G2M.Score < 0.3)
+s_obj <- subset(s_obj, cells = to_keep_sscore)
+s_obj <- subset(s_obj, cells = to_keep_g2mscore)
+
+# Filter mitocondrial genes
+s_obj <- s_obj[!grepl("^MT-", rownames(s_obj)), ]
+
+# Plot post-filtering QC stats
+plot_qc_metrics(s_obj)
+plot_features_vs_counts(s_obj)
+```
+
+```{r Cluster post-filtered data, fig.height = 16}
+s_obj <- cluster_cells(s_obj, nfeatures = 2000)
+```
+
 ```{r Save to RDS}
 saveRDS(s_obj, file = params$output_seurat_object)
 ```
