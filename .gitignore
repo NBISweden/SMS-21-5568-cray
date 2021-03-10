@@ -5,8 +5,11 @@
 **_files
 
 # Data and results
-data/
-results/
+data/*
+results/*
 
 # Misc
 run.sh
+
+# Cell type marker data
+!data/cell_type_markers.csv
