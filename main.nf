@@ -8,6 +8,7 @@ resultsdir = "results/"
 workflow {
     // Report files
     report_1_qc = file("bin/report_1_quality_controls.Rmd")
+    report_2_de = file("bin/report_2_differential_expression.Rmd")
 
     // Input files
     Channel
@@ -18,6 +19,7 @@ workflow {
     // Run the workflow
     merge_cells(gene_expression)
     quality_controls(report_1_qc, merge_cells.out.seurat_object)
+    differential_expression(report_2_de, quality_controls.out.seurat_object)
 }
 
 // Merge same-sample cells
@@ -48,14 +50,40 @@ process quality_controls {
 
     output:
     path("report_1_quality_controls.html")
-    path("seurat-qc.rds")
+    path("seurat-qc.rds", emit: seurat_object)
 
     script:
     """
     #!/usr/bin/env Rscript
-    parameters <- list(root_directory  = getwd(),
+    parameters <- list(root_directory       = getwd(),
                        input_seurat_object  = "${seurat_object}",
                        output_seurat_object = "seurat-qc.rds")
+    output_report <- gsub(".Rmd", ".html", basename("${report}"))
+    rmarkdown::render("${report}",
+                      params      = parameters,
+                      output_dir  = getwd(),
+                      output_file = output_report)
+    """
+}
+
+process differential_expression {
+    publishDir "${resultsdir}/seurat/02-differential-expression",
+        mode: "copy"
+
+    input:
+    path(report)
+    path(seurat_object)
+
+    output:
+    path("report_2_differential_expression.html")
+    path("seurat-de.rds")
+
+    script:
+    """
+    #!/usr/bin/env Rscript
+    parameters <- list(root_directory       = getwd(),
+                       input_seurat_object  = "${seurat_object}",
+                       output_seurat_object = "seurat-de.rds")
     output_report <- gsub(".Rmd", ".html", basename("${report}"))
     rmarkdown::render("${report}",
                       params      = parameters,
