@@ -59,8 +59,6 @@ merge_cells <- function(objects, sample_ids, final_sample_id) {
 }
 
 # List all expression files
-# files <- list.files("results/expression/")
-# files <- file.path("results/expression", files, "alevin/quants_mat.gz")
 files <- sort(strsplit(args$input_files, " ")[[1]])
 files <- file.path(files, "alevin/quants_mat.gz")
 
@@ -78,14 +76,20 @@ s8 <- create_seurat_object(files[8])
 s_obj_sample_1 <- merge_cells(list(s1, s2, s3, s4),
                               c("S1", "S2", "S3", "S4"),
                               "S1")
+rm(s1, s2, s3, s4)
+invisible(gc())
 s_obj_sample_2 <- merge_cells(list(s5, s6, s7, s8),
                               c("S5", "S6", "S7", "S8"),
                               "S2")
+rm(s5, s6, s7, s8)
+invisible(gc())
 
 # Merge per-sample Seurat objects
-s_obj <- merge(s_obj_sample_1,
+s_obj <- merge(x            = s_obj_sample_1,
                y            = s_obj_sample_2,
                add.cell.ids = c("S1", "S2"))
+rm(s_obj_sample_1, s_obj_sample_2)
+invisible(gc())
 
 # Save the final Seurat object
 saveRDS(s_obj, file = args$output_path)
