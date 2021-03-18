@@ -1,0 +1,163 @@
+---
+params:
+    root_directory: NULL
+    input_seurat_object: NULL
+    output_seurat_object: NULL
+    cell_type_markers: NULL
+    transcriptome_id_map: NULL
+title: "NBIS Support #5568"
+subtitle: "Integration and known cell type markers"
+author: "Erik Fasterius"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+    html_document:
+        code_folding: hide
+        toc: true
+        toc_float:
+            collapsed: true
+---
+
+```{r Setup}
+# Knit options
+knitr::opts_knit$set(root.dir = params$root_directory)
+
+# Chunk options
+knitr::opts_chunk$set(fig.width  = 12,
+                      fig.height = 8,
+                      fig.align  = "center",
+                      message    = FALSE,
+                      warning    = FALSE,
+                      results    = "asis")
+```
+
+```{r Load packages}
+suppressPackageStartupMessages({
+    library("cowplot")
+    library("Seurat")
+    library("tidyverse")
+})
+```
+
+# Integration
+
+We first want to integrate our two samples together using overlapping cell
+types to help clustering and downstream analyses. This only affects cells that
+are the same in the two samples; different cell types will still yield separate
+clusters.
+
+```{r Integrate datasets}
+# Read filtered data
+s_obj <- readRDS(params$input_seurat_object)
+
+# Split data into each original sample
+s_obj_list <- SplitObject(s_obj, split.by = "orig.ident")
+
+# Define number of PCs and variable features
+npcs <- 50
+nfeatures <- 3000
+
+# Normalise and find highest variable features per dataset
+for (i in 1:length(s_obj_list)) {
+    s_obj_list[[i]] <- NormalizeData(s_obj_list[[i]], verbose = FALSE)
+    s_obj_list[[i]] <- FindVariableFeatures(s_obj_list[[i]],
+                                              selection.method = "vst",
+                                              nfeatures        = nfeatures,
+                                              verbose          = FALSE)
+}
+
+# Find integration anchors
+anchors <- FindIntegrationAnchors(object.list = s_obj_list,
+                                  dims        = 1:npcs,
+                                  reduction   = "cca")
+
+# Integrate the samples with the identified anchors
+s_obj_integrated <- IntegrateData(anchorset      = anchors,
+                                  dims           = 1:npcs,
+                                  new.assay.name = "CCA")
+```
+
+```{r Scaling and clustering}
+# Run scaling, PCA and UMAP on data
+    to_regress <- c("percent_mito", "nFeature_RNA", "S.Score", "G2M.Score")
+s_obj_integrated <- ScaleData(s_obj_integrated, vars.to.regress = to_regress)
+s_obj_integrated <- RunPCA(s_obj_integrated, npcs = npcs, verbose = FALSE)
+s_obj_integrated <- RunUMAP(s_obj_integrated, dims = 1:npcs)
+```
+
+```{r Plot integrated clusters}
+plot_grid(ncol = 2,
+    DimPlot(s_obj, reduction = "umap", group.by = "orig.ident") +
+        NoAxes() +
+        ggtitle("UMAP raw data"),
+    DimPlot(s_obj_integrated, reduction = "umap", group.by = "orig.ident") +
+        NoAxes() +
+        ggtitle("UMAP integrated data")
+)
+```
+
+```{r Plot integrated features, fig.height = 16}
+features <- c("nCount_RNA", "nFeature_RNA", "percent_mito",
+              "percent_ribo", "S.Score", "G2M.Score")
+FeaturePlot(s_obj_integrated, reduction = "umap", features = features)
+```
+
+# Marker expression
+
+Here we simply map and plot the expression of the previously known cell type
+markers in each cell and cluster.
+
+```{r Get cell type markers}
+# Read cell type markers
+cell_type_markers <- read.table(params$cell_type_markers,
+                               sep              = ",",
+                               header           = TRUE,
+                               stringsAsFactors = FALSE)
+
+# Read transcriptome ID mappings
+marker_mapping <- read.table(params$transcriptome_id_map,
+                   sep              = "\t",
+                   header           = TRUE,
+                   stringsAsFactors = FALSE)
+marker_mapping$original_id <- gsub("_", "-", marker_mapping$original_id)
+
+# Merge to get original IDs used in the Seurat object
+markers <- merge(cell_type_markers,
+                 marker_mapping,
+                 by.x = "NCBI_accession",
+                 by.y = "ncbi_id")
+```
+
+```{r Plot cell type markers}
+# Re-order clusters
+num_clusters <- length(levels(s_obj_integrated)) - 1
+s_obj_integrated$seurat_clusters <-
+    factor(s_obj_integrated$seurat_clusters,
+           levels = c(0:num_clusters))
+levels(s_obj_integrated) <- c(0:num_clusters)
+
+# Plot clusters
+DimPlot(s_obj_integrated,
+        reduction = "umap",
+        label     = TRUE,
+        group.by  = "seurat_clusters") +
+    NoAxes()
+
+# Plot marker expression
+FeaturePlot(s_obj_integrated,
+            reduction = "umap",
+            features  = markers$original_id)
+VlnPlot(s_obj_integrated,
+        assay    = "RNA",
+        features = markers$original_id)
+```
+
+As can be seen in both of the above figures, only four of all the cell type
+markers are expressed at any level in at least one cell, but even those that
+are expressed are expressed at a very low level. We can, however, see a pattern
+in the expression of the `comp36642-c0-seq6` transcript, in that it is clearly
+more expressed in cluster 4, 5, 6 and 10 - most of the cells in these clusters
+do not, however, express this transcript.
+
+```{r Save RDS object}
+saveRDS(s_obj_integrated, file = params$output_seurat_object)
+```
