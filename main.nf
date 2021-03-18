@@ -6,10 +6,15 @@ resultsdir = "results/"
 
 // Analysis workflow
 workflow {
+    // NCBI transcriptome
+    ncbi_transcriptome = file("https://sra-download.ncbi.nlm.nih.gov/traces/wgs03/wgs_aux/GB/YW/GBYW01/GBYW01.1.fsa_nt.gz")
+
+    // Known cell type markers
+    cell_type_markers = file("data/cell_type_markers.csv")
+
     // Report files
     report_1_qc = file("bin/report_1_quality_controls.Rmd")
     report_2_de = file("bin/report_2_differential_expression.Rmd")
-    ncbi_transcriptome = file("https://sra-download.ncbi.nlm.nih.gov/traces/wgs03/wgs_aux/GB/YW/GBYW01/GBYW01.1.fsa_nt.gz")
 
     // Input files
     Channel
@@ -21,7 +26,10 @@ workflow {
     map_transcriptome_ids(ncbi_transcriptome)
     merge_cells(gene_expression)
     quality_controls(report_1_qc, merge_cells.out.seurat_object)
-    differential_expression(report_2_de, quality_controls.out.seurat_object)
+    differential_expression(report_2_de,
+                            quality_controls.out.seurat_object,
+                            map_transcriptome_ids.out.transcriptome_id_map,
+                            cell_type_markers)
 }
 
 // Map NCBI <-> internal transcriptome IDs
@@ -102,6 +110,8 @@ process differential_expression {
     input:
     path(report)
     path(seurat_object)
+    path(transcriptome_id_map)
+    path(cell_type_markers)
 
     output:
     path("report_2_differential_expression.html")
@@ -112,7 +122,9 @@ process differential_expression {
     #!/usr/bin/env Rscript
     parameters <- list(root_directory       = getwd(),
                        input_seurat_object  = "${seurat_object}",
-                       output_seurat_object = "seurat-de.rds")
+                       output_seurat_object = "seurat-de.rds",
+                       transcriptome_id_map = "${transcriptome_id_map}",
+                       cell_type_markers    = "${cell_type_markers}")
     output_report <- gsub(".Rmd", ".html", basename("${report}"))
     rmarkdown::render("${report}",
                       params      = parameters,
