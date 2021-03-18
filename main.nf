@@ -10,11 +10,11 @@ workflow {
     ncbi_transcriptome = file("https://sra-download.ncbi.nlm.nih.gov/traces/wgs03/wgs_aux/GB/YW/GBYW01/GBYW01.1.fsa_nt.gz")
 
     // Known cell type markers
-    cell_type_markers = file("data/cell_type_markers.csv")
+    cell_type_markers = file("data/cell-type-markers.csv")
 
     // Report files
-    report_1_qc = file("bin/report_1_quality_controls.Rmd")
-    report_2_de = file("bin/report_2_differential_expression.Rmd")
+    report_1_qc = file("bin/report-1-quality-controls.Rmd")
+    report_2_de = file("bin/report-2-integration-and-markers.Rmd")
 
     // Input files
     Channel
@@ -26,10 +26,10 @@ workflow {
     map_transcriptome_ids(ncbi_transcriptome)
     merge_cells(gene_expression)
     quality_controls(report_1_qc, merge_cells.out.seurat_object)
-    differential_expression(report_2_de,
-                            quality_controls.out.seurat_object,
-                            map_transcriptome_ids.out.transcriptome_id_map,
-                            cell_type_markers)
+    integration(report_2_de,
+                quality_controls.out.seurat_object,
+                map_transcriptome_ids.out.transcriptome_id_map,
+                cell_type_markers)
 }
 
 // Map NCBI <-> internal transcriptome IDs
@@ -86,7 +86,7 @@ process quality_controls {
     path(seurat_object)
 
     output:
-    path("report_1_quality_controls.html")
+    path("report-1-quality-controls.html")
     path("seurat-qc.rds", emit: seurat_object)
 
     script:
@@ -103,8 +103,8 @@ process quality_controls {
     """
 }
 
-process differential_expression {
-    publishDir "${resultsdir}/seurat/02-differential-expression",
+process integration {
+    publishDir "${resultsdir}/seurat/02-integration-and-markers",
         mode: "copy"
 
     input:
@@ -114,15 +114,15 @@ process differential_expression {
     path(cell_type_markers)
 
     output:
-    path("report_2_differential_expression.html")
-    path("seurat-de.rds")
+    path("report-2-integration-and-markers.html")
+    path("seurat-integration.rds", emit: seurat_object)
 
     script:
     """
     #!/usr/bin/env Rscript
     parameters <- list(root_directory       = getwd(),
                        input_seurat_object  = "${seurat_object}",
-                       output_seurat_object = "seurat-de.rds",
+                       output_seurat_object = "seurat-integration.rds",
                        transcriptome_id_map = "${transcriptome_id_map}",
                        cell_type_markers    = "${cell_type_markers}")
     output_report <- gsub(".Rmd", ".html", basename("${report}"))

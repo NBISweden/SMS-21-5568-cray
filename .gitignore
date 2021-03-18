@@ -12,4 +12,4 @@ results/*
 run.sh
 
 # Cell type marker data
-!data/cell_type_markers.csv
+!data/cell-type-markers.csv
