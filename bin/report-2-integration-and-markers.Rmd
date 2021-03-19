@@ -151,12 +151,14 @@ VlnPlot(s_obj_integrated,
         features = markers$original_id)
 ```
 
-As can be seen in both of the above figures, only four of all the cell type
-markers are expressed at any level in at least one cell, but even those that
-are expressed are expressed at a very low level. We can, however, see a pattern
-in the expression of the `comp36642-c0-seq6` transcript, in that it is clearly
-more expressed in cluster 4, 5, 6 and 10 - most of the cells in these clusters
-do not, however, express this transcript.
+The above figures are violin-plots of cell type marker expression, but since
+almost all cells in all clusters show a zero or near-zero expression of the
+markers it looks like flat distributions around zero, with some outlier cells
+expressing the markers scattered at low (but non-zero) expression. We can,
+however, see a slight pattern in the expression of the `comp36642-c0-seq6`
+transcript, in that it is slightly more expressed in cluster 4, 5, 6 and 10 -
+most of the cells in these clusters do not, however, express this transcript at
+all, but it is the only discernible pattern here.
 
 ```{r Save RDS object}
 saveRDS(s_obj_integrated, file = params$output_seurat_object)
