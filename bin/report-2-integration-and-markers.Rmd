@@ -145,6 +145,7 @@ DimPlot(s_obj_integrated,
 # Plot marker expression
 FeaturePlot(s_obj_integrated,
             reduction = "umap",
+            order     = TRUE,
             features  = markers$original_id)
 VlnPlot(s_obj_integrated,
         assay    = "RNA",

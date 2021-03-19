@@ -230,7 +230,10 @@ cluster_cells <- function(s_obj,
     # Plot selected features on UMAP
     features <- c("nCount_RNA", "nFeature_RNA", "percent_mito",
                   "percent_ribo", "S.Score", "G2M.Score")
-    gg <- FeaturePlot(s_obj, reduction = "umap", features = features)
+    gg <- FeaturePlot(s_obj,
+                      order     = TRUE,
+                      reduction = "umap",
+                      features  = features)
     show(gg)
 
     # Return Seurat object
