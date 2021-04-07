@@ -14,7 +14,8 @@ workflow {
 
     // Report files
     report_1_qc = file("bin/report-1-quality-controls.Rmd")
-    report_2_de = file("bin/report-2-integration-and-markers.Rmd")
+    report_2_integration = file("bin/report-2-integration-and-markers.Rmd")
+    report_3_de = file("bin/report-3-differential-expression.Rmd")
 
     // Input files
     Channel
@@ -26,10 +27,12 @@ workflow {
     map_transcriptome_ids(ncbi_transcriptome)
     merge_cells(gene_expression)
     quality_controls(report_1_qc, merge_cells.out.seurat_object)
-    integration(report_2_de,
+    integration(report_2_integration,
                 quality_controls.out.seurat_object,
                 map_transcriptome_ids.out.transcriptome_id_map,
                 cell_type_markers)
+    differential_expression(report_3_de,
+                            integration.out.seurat_object)
 }
 
 // Map NCBI <-> internal transcriptome IDs
@@ -125,6 +128,31 @@ process integration {
                        output_seurat_object = "seurat-integration.rds",
                        transcriptome_id_map = "${transcriptome_id_map}",
                        cell_type_markers    = "${cell_type_markers}")
+    output_report <- gsub(".Rmd", ".html", basename("${report}"))
+    rmarkdown::render("${report}",
+                      params      = parameters,
+                      output_dir  = getwd(),
+                      output_file = output_report)
+    """
+}
+
+process differential_expression {
+    publishDir "${resultsdir}/seurat/03-differential-expression",
+        mode: "copy"
+
+    input:
+    path(report)
+    path(seurat_object)
+
+    output:
+    path("report-3-differential-expression.html")
+    path("*.tsv", optional: true)
+
+    script:
+    """
+    #!/usr/bin/env Rscript
+    parameters <- list(root_directory       = getwd(),
+                       input_seurat_object  = "${seurat_object}")
     output_report <- gsub(".Rmd", ".html", basename("${report}"))
     rmarkdown::render("${report}",
                       params      = parameters,

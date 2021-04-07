@@ -15,6 +15,7 @@ dependencies:
     # R packages
     - bioconductor-alevinQC=1.2.0
     - bioconductor-fishpond=1.2.0
+    - bioconductor-mast=1.12.0
     - bioconductor-tximport=1.14.0
     - r-argparse=2.0.3
     - r-cowplot=1.1.1

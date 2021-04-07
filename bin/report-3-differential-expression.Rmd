@@ -1,0 +1,111 @@
+---
+params:
+    root_directory: NULL
+    input_seurat_object: NULL
+title: "NBIS Support #5568"
+subtitle: "Differential expression analyses"
+author: "Erik Fasterius"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+    html_document:
+        code_folding: hide
+        toc: true
+        toc_float:
+            collapsed: true
+---
+
+```{r Setup}
+# Knit options
+knitr::opts_knit$set(root.dir = params$root_directory)
+
+# Chunk options
+knitr::opts_chunk$set(fig.width  = 12,
+                      fig.height = 8,
+                      fig.align  = "center",
+                      message    = FALSE,
+                      warning    = FALSE,
+                      results    = "asis")
+```
+
+```{r Load packages}
+suppressPackageStartupMessages({
+    library("cowplot")
+    library("ggplot2")
+    library("MAST")
+    library("Seurat")
+    library("tidyverse")
+})
+```
+
+```{r Read data}
+s_obj <- readRDS(params$input_seurat_object)
+```
+
+# Differential expression analyses
+
+Perform differential expression comparing each individual cluster to all other
+clusters, yielding features (genes or transcripts, in this case) that are
+differentially expressed for each particular cluster compared to the rest. Plot
+the top nine differentially expressed features for each comparison; the full
+list of all features is included in the output files on the format
+`degs.<cluster>-vs-all.tsv`.
+
+```{r Plot clusters}
+DimPlot(s_obj,
+       reduction = "umap",
+       group.by  = "seurat_clusters",
+       label     = TRUE) +
+    NoAxes() +
+    NoLegend() +
+    ggtitle("Clusters")
+```
+
+```{r Differential expression}
+# Loop over all individual clusters
+clusters <- sort(unique(s_obj@meta.data$seurat_clusters))[1]
+for (cluster in clusters) {
+
+    # Print cluster header
+    cat(paste0("\n\n## Cluster ", cluster, "\n\n"))
+
+    # Find markers for current cluster versus all others
+    markers <- FindMarkers(object          = s_obj,
+                           assay           = "RNA",
+                           test.use        = "MAST",
+                           slot            = "data",
+                           ident.1         = cluster,
+                           ident.2         = NULL,
+                           latent.vars     = NULL,
+                           min.pct         = 0.1,
+                           logfc.threshold = 0.25)
+
+    # Add feature names and cluster ID as column
+    markers$feature <- row.names(markers)
+    markers$cluster <- cluster
+    markers <- select(markers, "cluster", "feature", everything())
+
+    # Write DEGs to file
+    file <- paste0("degs.cluster-", cluster, "-vs-all.tsv")
+    write.table(markers,
+                file      = file,
+                sep       = "\t",
+                row.names = FALSE,
+                quote     = FALSE)
+
+    # Plot top 9 features
+    top_9 <- as.character(markers$feature[1:9])
+    plot_list <- FeaturePlot(s_obj,
+                             features = top_9,
+                             combine  = FALSE)
+
+    # Remove all axes and legends
+    for(ii in 1:length(plot_list)) {
+        plot_list[[ii]] <- plot_list[[ii]] +
+            NoLegend() +
+            NoAxes()
+    }
+
+    # Plot in a grid
+    show(cowplot::plot_grid(plotlist = plot_list))
+}
+```
