@@ -53,7 +53,7 @@ process map_transcriptome_ids {
         > transcriptome_id_map.tsv
 
     # Get ID mappings
-    gzcat GBYW01.1.fsa_nt.gz > tmp.fasta
+    gzip --decompress < ${ncbi_transcriptome} > tmp.fasta
     grep ">" tmp.fasta \
         | cut -d ' ' -f 1,5 \
         | tr -d '>' \
