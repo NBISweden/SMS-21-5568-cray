@@ -62,15 +62,11 @@ merge_cells <- function(objects, sample_ids, final_sample_id) {
 files <- sort(strsplit(args$input_files, " ")[[1]])
 files <- file.path(files, "alevin/quants_mat.gz")
 
-# Create individual Seurat objects
+# Create individual Seurat objects (s1-4)
 s1 <- create_seurat_object(files[1])
 s2 <- create_seurat_object(files[2])
 s3 <- create_seurat_object(files[3])
 s4 <- create_seurat_object(files[4])
-s5 <- create_seurat_object(files[5])
-s6 <- create_seurat_object(files[6])
-s7 <- create_seurat_object(files[7])
-s8 <- create_seurat_object(files[8])
 
 # Merge same-sample cells
 s_obj_sample_1 <- merge_cells(list(s1, s2, s3, s4),
@@ -78,6 +74,12 @@ s_obj_sample_1 <- merge_cells(list(s1, s2, s3, s4),
                               "S1")
 rm(s1, s2, s3, s4)
 invisible(gc())
+
+# Create individual Seurat objects (s5-8)
+s5 <- create_seurat_object(files[5])
+s6 <- create_seurat_object(files[6])
+s7 <- create_seurat_object(files[7])
+s8 <- create_seurat_object(files[8])
 s_obj_sample_2 <- merge_cells(list(s5, s6, s7, s8),
                               c("S5", "S6", "S7", "S8"),
                               "S2")
