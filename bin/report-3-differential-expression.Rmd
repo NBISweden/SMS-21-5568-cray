@@ -62,7 +62,7 @@ DimPlot(s_obj,
 
 ```{r Differential expression}
 # Loop over all individual clusters
-clusters <- sort(unique(s_obj@meta.data$seurat_clusters))[1]
+clusters <- sort(unique(s_obj@meta.data$seurat_clusters))
 for (cluster in clusters) {
 
     # Print cluster header
