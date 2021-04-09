@@ -28,6 +28,9 @@ knitr::opts_chunk$set(fig.width  = 12,
                       message    = FALSE,
                       warning    = FALSE,
                       results    = "asis")
+
+# Set seed
+set.seed(42)
 ```
 
 ```{r Load packages}
