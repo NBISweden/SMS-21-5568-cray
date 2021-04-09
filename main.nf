@@ -4,8 +4,9 @@ nextflow.preview.dsl=2
 // Workflow paths
 resultsdir = "results/"
 
-// Analysis workflow
 workflow {
+    // Analysis workflow
+
     // NCBI transcriptome
     ncbi_transcriptome = file("https://sra-download.ncbi.nlm.nih.gov/traces/wgs03/wgs_aux/GB/YW/GBYW01/GBYW01.1.fsa_nt.gz")
 
@@ -35,8 +36,8 @@ workflow {
                             integration.out.seurat_object)
 }
 
-// Map NCBI <-> internal transcriptome IDs
 process map_transcriptome_ids {
+    // Map NCBI <-> internal transcriptome IDs
     publishDir "${resultsdir}/idx/",
         mode: "copy"
 
@@ -62,8 +63,8 @@ process map_transcriptome_ids {
     """
 }
 
-// Merge same-sample cells
 process merge_cells {
+    // Merge same-sample cells
     publishDir "${resultsdir}/seurat/00-merged-cells",
         mode: "copy"
 
@@ -79,8 +80,8 @@ process merge_cells {
     """
 }
 
-// Basic QC plots and filtering
 process quality_controls {
+    // Basic QC plots and filtering
     publishDir "${resultsdir}/seurat/01-quality_controls/",
         mode: "copy"
 
@@ -107,6 +108,7 @@ process quality_controls {
 }
 
 process integration {
+    // Sample integration and known cell type marker expression
     publishDir "${resultsdir}/seurat/02-integration-and-markers",
         mode: "copy"
 
@@ -137,6 +139,7 @@ process integration {
 }
 
 process differential_expression {
+    // Differential expression analyses
     publishDir "${resultsdir}/seurat/03-differential-expression",
         mode: "copy"
 
@@ -161,8 +164,9 @@ process differential_expression {
     """
 }
 
-// Pre-processing workflow
 workflow pre_processing {
+    // Pre-processing workflow
+
     // References and annotations
     transcript_fasta = file("data/Trinity_SoF3I50bpF5_paired_mod.fasta")
     blast_xml = file("data/Trinity_SoF3I50bpF5_paired_mod.blast.xml")
@@ -189,8 +193,8 @@ workflow pre_processing {
     alevin_quality_controls(quantify_expression.out.alevin_output)
 }
 
-// Build the tx2gene mapping and transcriptome + mitochondrion FASTA
 process build_tx2gene_and_fasta {
+    // Build the tx2gene mapping and transcriptome + mitochondrion FASTA
     input:
     path(blast_xml)
     path(transcript_fasta)
@@ -227,8 +231,8 @@ process build_tx2gene_and_fasta {
     """
 }
 
-// Index the transcriptome for use in downstream analyses
 process salmon_index {
+    // Index the transcriptome for use in downstream analyses
     publishDir "${resultsdir}/idx/",
         mode: "copy"
 
@@ -247,8 +251,8 @@ process salmon_index {
     """
 }
 
-// Concatenate per-sample reads across sequencing lanes
 process concatenate_lanes {
+    // Concatenate per-sample reads across sequencing lanes
     tag "${sample_name}"
     publishDir "${resultsdir}/fastq/",
         mode: "copy"
@@ -270,8 +274,8 @@ process concatenate_lanes {
     """
 }
 
-// Quantify the raw reads with Alevin
 process quantify_expression {
+    // Quantify the raw reads with Alevin
     tag "${sample_name}"
     publishDir "${resultsdir}/expression/",
         mode: "copy"
@@ -298,8 +302,8 @@ process quantify_expression {
     """
 }
 
-// Perform basic quality controls of the Alevin gene expression data
 process alevin_quality_controls {
+    // Perform basic quality controls of the Alevin gene expression data
     tag "${sample_name}"
     publishDir "${resultsdir}/expression/${sample_name}",
         mode: "copy"
