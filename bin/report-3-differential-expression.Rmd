@@ -50,50 +50,91 @@ the top nine differentially expressed features for each comparison; the full
 list of all features is included in the output files on the format
 `degs.<cluster>-vs-all.tsv`.
 
+```{r Differential expression in all clusters}
+markers <- FindAllMarkers(object              = s_obj,
+                          assay               = "RNA",
+                          test.use            = "MAST",
+                          slot                = "data",
+                          latent.vars         = NULL,
+                          min.pct             = 0.1,
+                          logfc.threshold     = 0.25,
+                          return.thresh       = 0.01)
+
+# Re-order columns
+markers <- markers %>%
+    select(cluster, gene, everything())
+
+# Find top 10 DEGs per cluster
+top_9 <- markers %>%
+    group_by(cluster) %>%
+    top_n(-9, p_val_adj) %>%
+    pull(gene) %>%
+    unique() %>%
+    gsub("\\\\","-", .)
+```
+
+## Heatmap
+
+```{r Heatmap}
+DoHeatmap(object   = s_obj,
+          features = top_9,
+          slot     = "data",
+          group.by = "seurat_clusters",
+          assay    = "RNA")
+```
+
+## Dotplot
+
+```{r Dotplot, fig.height = 24}
+DotPlot(object   = s_obj,
+        features = top_9,
+        group.by = "seurat_clusters",
+        assay    = "RNA") +
+    coord_flip()
+```
+
+## Violinplot
+
+```{r Violinplot, fig.height = 24}
+VlnPlot(object   = s_obj,
+        features = top_9,
+        ncol     = 9,
+        group.by = "seurat_clusters",
+        assay    = "RNA")
+```
+
+## Expression per cluster
+
 ```{r Plot clusters}
 DimPlot(s_obj,
-       reduction = "umap",
-       group.by  = "seurat_clusters",
-       label     = TRUE) +
+        reduction = "umap",
+        group.by  = "seurat_clusters",
+        label     = TRUE) +
     NoAxes() +
     NoLegend() +
     ggtitle("Clusters")
 ```
 
-```{r Differential expression}
+```{r Plot top 9 features per cluster}
 # Loop over all individual clusters
-clusters <- sort(unique(s_obj@meta.data$seurat_clusters))
-for (cluster in clusters) {
+for (cluster in sort(unique(markers$cluster))) {
 
     # Print cluster header
-    cat(paste0("\n\n## Cluster ", cluster, "\n\n"))
+    cat(paste0("\n\n### Cluster ", cluster, "\n\n"))
 
-    # Find markers for current cluster versus all others
-    markers <- FindMarkers(object          = s_obj,
-                           assay           = "RNA",
-                           test.use        = "MAST",
-                           slot            = "data",
-                           ident.1         = cluster,
-                           ident.2         = NULL,
-                           latent.vars     = NULL,
-                           min.pct         = 0.1,
-                           logfc.threshold = 0.25)
+    # Get DEGs for current cluster
+    current_markers <- markers[markers$cluster == cluster, ]
 
-    # Add feature names and cluster ID as column
-    markers$feature <- row.names(markers)
-    markers$cluster <- cluster
-    markers <- select(markers, "cluster", "feature", everything())
-
-    # Write DEGs to file
+    # Write current DEGs to file
     file <- paste0("degs.cluster-", cluster, "-vs-all.tsv")
-    write.table(markers,
+    write.table(current_markers,
                 file      = file,
                 sep       = "\t",
                 row.names = FALSE,
                 quote     = FALSE)
 
     # Plot top 9 features
-    top_9 <- as.character(markers$feature[1:9])
+    top_9 <- as.character(current_markers$gene[1:9])
     plot_list <- FeaturePlot(s_obj,
                              features = top_9,
                              combine  = FALSE)
