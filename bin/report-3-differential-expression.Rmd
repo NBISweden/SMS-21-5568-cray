@@ -40,10 +40,6 @@ suppressPackageStartupMessages({
 })
 ```
 
-```{r Read data}
-s_obj <- readRDS(params$input_seurat_object)
-```
-
 # Differential expression analyses
 
 Perform differential expression comparing each individual cluster to all other
@@ -53,7 +49,12 @@ the top nine differentially expressed features for each comparison; the full
 list of all features is included in the output files on the format
 `degs.<cluster>-vs-all.tsv`.
 
+```{r Read data}
+s_obj <- readRDS(params$input_seurat_object)
+```
+
 ```{r Differential expression in all clusters}
+# Perform DEA
 markers <- FindAllMarkers(object              = s_obj,
                           assay               = "RNA",
                           test.use            = "MAST",
@@ -74,41 +75,8 @@ top_9 <- markers %>%
     pull(gene) %>%
     unique() %>%
     gsub("\\\\","-", .)
-```
 
-## Heatmap
-
-```{r Heatmap}
-DoHeatmap(object   = s_obj,
-          features = top_9,
-          slot     = "data",
-          group.by = "seurat_clusters",
-          assay    = "RNA")
-```
-
-## Dotplot
-
-```{r Dotplot, fig.height = 24}
-DotPlot(object   = s_obj,
-        features = top_9,
-        group.by = "seurat_clusters",
-        assay    = "RNA") +
-    coord_flip()
-```
-
-## Violinplot
-
-```{r Violinplot, fig.height = 24}
-VlnPlot(object   = s_obj,
-        features = top_9,
-        ncol     = 9,
-        group.by = "seurat_clusters",
-        assay    = "RNA")
-```
-
-## Expression per cluster
-
-```{r Plot clusters}
+# Plot cluster IDs
 DimPlot(s_obj,
         reduction = "umap",
         group.by  = "seurat_clusters",
@@ -118,7 +86,71 @@ DimPlot(s_obj,
     ggtitle("Clusters")
 ```
 
+## Heatmap
+
+The following is a heatmap for the top nine differentially expressed features in
+each of the clusters. The top features for each cluster is included, which is
+why many more than nine are shown in total. We can see that the genes that are
+included generally have a higher expression than individual transcripts, thus
+contributing more to the clustering of the heatmap.
+
+```{r Heatmap, fig.height = 32}
+DoHeatmap(object   = s_obj,
+          features = top_9,
+          slot     = "data",
+          group.by = "seurat_clusters",
+          assay    = "RNA")
+```
+
+## Dotplot
+
+The following is a dotplot for the top nine differentially expressed features in
+each of the clusters, visualising the expression difference for each feature
+between the clusters of the data.
+
+```{r Dotplot, fig.height = 32}
+DotPlot(object   = s_obj,
+        features = top_9,
+        group.by = "seurat_clusters",
+        assay    = "RNA") +
+    coord_flip()
+```
+
+## Violinplots
+
+The following are violinplots of the top nine differentially expressed features
+of the data, which is another way to highlight differences of feature expression
+between the clusters of the data. Expression is low overall, but a closer view
+of any particular feature shows in which clusters that particular feature is
+expressed. There are not many features that are uniquely expressed in a single
+cluster, but some exist (in particular for cluster 15).
+
+```{r Violinplot, fig.height = 60, fig.width = 20}
+VlnPlot(object   = s_obj,
+        features = top_9,
+        ncol     = 5,
+        group.by = "seurat_clusters",
+        assay    = "RNA")
+```
+
+## Expression per cluster
+
+The following figures show the expression of the top 9 differentially expressed
+genes for each cluster in the UMAP of the data, highlighting the location of
+feature expression in UMAP-space. This is another way to highlight feature
+expression in different clusters and what clusters are similar to each other in
+regards to expression of each cluster's most unique features.
+
 ```{r Plot top 9 features per cluster}
+# Plot cluster IDs
+DimPlot(s_obj,
+        reduction = "umap",
+        group.by  = "seurat_clusters",
+        label     = TRUE) +
+    NoAxes() +
+    NoLegend() +
+    ggtitle("Clusters")
+
 # Loop over all individual clusters
 for (cluster in sort(unique(markers$cluster))) {
 
