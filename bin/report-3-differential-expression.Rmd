@@ -172,6 +172,7 @@ for (cluster in sort(unique(markers$cluster))) {
     top_9 <- as.character(current_markers$gene[1:9])
     plot_list <- FeaturePlot(s_obj,
                              features = top_9,
+                             order    = TRUE,
                              combine  = FALSE)
 
     # Remove all axes and legends
