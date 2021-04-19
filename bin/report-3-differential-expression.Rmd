@@ -44,9 +44,8 @@ suppressPackageStartupMessages({
 
 Perform differential expression comparing each individual cluster to all other
 clusters, yielding features (genes or transcripts, in this case) that are
-differentially expressed for each particular cluster compared to the rest. Plot
-the top nine differentially expressed features for each comparison; the full
-list of all features is included in the output files on the format
+differentially expressed for each particular cluster compared to the rest. The
+full list of all features is included in the output files on the format
 `degs.<cluster>-vs-all.tsv`.
 
 ```{r Read data}
@@ -123,11 +122,11 @@ of the data, which is another way to highlight differences of feature expression
 between the clusters of the data. Expression is low overall, but a closer view
 of any particular feature shows in which clusters that particular feature is
 expressed. There are not many features that are uniquely expressed in a single
-cluster, but some exist (in particular for cluster 15).
+cluster, but some exist.
 
 ```{r Violinplot, fig.height = 60, fig.width = 20}
 VlnPlot(object   = s_obj,
-        features = top_9,
+        features = sort(top_9),
         ncol     = 5,
         group.by = "seurat_clusters",
         assay    = "RNA")

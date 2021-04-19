@@ -116,8 +116,9 @@ s_obj <- NormalizeData(s_obj,
                        scale.factor         = 10000)
 
 # Add mitochondrial / ribosomal gene percentages
-s_obj[["percent_mito"]] <- PercentageFeatureSet(s_obj, pattern = "^MT-")
-s_obj[["percent_ribo"]] <- PercentageFeatureSet(s_obj, pattern = "^RP[SL]")
+s_obj[["percent_mito"]] <- PercentageFeatureSet(s_obj, pattern = "^MT-|^Mt-")
+s_obj[["percent_ribo"]] <- PercentageFeatureSet(s_obj, pattern = "^RP[SL]|^Rp[sl]")
+s_obj[["percent_hsp"]] <- PercentageFeatureSet(s_obj, pattern = "^HSP|^Hsp")
 
 # Cell cycle scoring
 s_obj <- CellCycleScoring(s_obj,
@@ -270,8 +271,10 @@ to_keep_g2mscore <- WhichCells(s_obj, expression = G2M.Score < 0.3)
 s_obj <- subset(s_obj, cells = to_keep_sscore)
 s_obj <- subset(s_obj, cells = to_keep_g2mscore)
 
-# Filter mitocondrial genes
-s_obj <- s_obj[!grepl("^MT-", rownames(s_obj)), ]
+# Filter mitocondrial, ribosomal and heat shock protein genes
+s_obj <- s_obj[!grepl("^MT-|^Mt-", rownames(s_obj)), ]
+s_obj <- s_obj[!grepl("^RP[SL]|^Rp[sl]", rownames(s_obj)), ]
+s_obj <- s_obj[!grepl("^HSP|^Hsp", rownames(s_obj)), ]
 
 # Plot post-filtering QC stats
 plot_qc_metrics(s_obj)

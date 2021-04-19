@@ -81,7 +81,8 @@ s_obj_integrated <- IntegrateData(anchorset      = anchors,
 
 ```{r Scaling and clustering}
 # Run scaling, PCA and UMAP on data
-    to_regress <- c("percent_mito", "nFeature_RNA", "S.Score", "G2M.Score")
+to_regress <- c("percent_mito", "percent_ribo", "percent_hsp", "nFeature_RNA",
+                "S.Score", "G2M.Score")
 s_obj_integrated <- ScaleData(s_obj_integrated, vars.to.regress = to_regress)
 s_obj_integrated <- RunPCA(s_obj_integrated, npcs = npcs, verbose = FALSE)
 s_obj_integrated <- RunUMAP(s_obj_integrated, dims = 1:npcs)
