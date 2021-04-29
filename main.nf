@@ -168,8 +168,9 @@ workflow pre_processing {
     // Pre-processing workflow
 
     // References and annotations
-    transcript_fasta = file("data/Trinity_SoF3I50bpF5_paired_mod.fasta")
     blast_xml = file("data/Trinity_SoF3I50bpF5_paired_mod.blast.xml")
+    transcript_fasta = file("data/Trinity_SoF3I50bpF5_paired_mod.fasta")
+    manual_tx2gene = file("data/manual-tx2gene.tsv")
     mitochondrion_fasta = file("data/NC_033509.fasta")
 
     // Create channels for each read pair across lanes
@@ -182,8 +183,9 @@ workflow pre_processing {
 
     // Run the workflow
     build_tx2gene_and_fasta(blast_xml,
-                  transcript_fasta,
-                  mitochondrion_fasta)
+                            transcript_fasta,
+                            manual_tx2gene,
+                            mitochondrion_fasta)
     salmon_index(build_tx2gene_and_fasta.out.fasta)
     concatenate_lanes(raw_reads_R1,
                       raw_reads_R2)
@@ -198,6 +200,7 @@ process build_tx2gene_and_fasta {
     input:
     path(blast_xml)
     path(transcript_fasta)
+    path(manual_tx2gene)
     path(mitochondrion_fasta)
 
     output:
@@ -219,6 +222,11 @@ process build_tx2gene_and_fasta {
     paste \
         <(cut -d ' ' -f 1 tx2gene-joined.tsv) \
         <(cut -d ' ' -f 2 tx2gene-joined.tsv) \
+        > tx2gene-pre-manual.tsv
+
+    # Add manual mappings from the group
+    join -a1 -a2 -e- ${manual_tx2gene} <(sort tx2gene-pre-manual.tsv) \
+        | tr ' ' '\t' \
         > tx2gene-pre-mito.tsv
 
     # Add mitochondrion genome entry to tx2gene
