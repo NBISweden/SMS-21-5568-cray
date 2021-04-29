@@ -1,5 +1,6 @@
-# Conda env
+# Conda env and Singularity images
 **-env
+**.sif
 
 # R Markdown files
 **_files
