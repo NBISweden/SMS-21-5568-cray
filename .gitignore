@@ -11,5 +11,6 @@ results/*
 # Misc
 run.sh
 
-# Cell type marker data
+# Manual data from group
 !data/cell-type-markers.csv
+!data/manual-tx2gene.tsv
