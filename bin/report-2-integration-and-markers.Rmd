@@ -41,6 +41,15 @@ suppressPackageStartupMessages({
 })
 ```
 
+```{r Data and variables}
+# Read filtered data
+s_obj <- readRDS(params$input_seurat_object)
+
+# Define number of PCs and variable features
+npcs <- 50
+nfeatures <- 3000
+```
+
 # Integration
 
 We first want to integrate our two samples together using overlapping cell
@@ -48,16 +57,38 @@ types to help clustering and downstream analyses. This only affects cells that
 are the same in the two samples; different cell types will still yield separate
 clusters.
 
-```{r Integrate datasets}
-# Read filtered data
-s_obj <- readRDS(params$input_seurat_object)
+```{r Remove doublets, results = FALSE, include = FALSE, eval = FALSE}
+# Estimate ideal PC neighbourhood size for computing pANN
+# (proportion of artifical k nearest neighbours)
+library("DoubletFinder")
+sweep_res <- paramSweep_v3(s_obj, PCs = 1:npcs, sct = FALSE)
+sweep_stats <- summarizeSweep(sweep_res, GT = FALSE)
+sweep_results <- find.pK(sweep_stats)
+max_bc <- max(sweep_results$BCmetric)
+pK_estimate <- sweep_results[sweep_results$BCmetric == max_bc, "pK"]
+pK_estimate <- as.numeric(as.character(pK_estimate))
 
+# Define pANN threshold for singlet/doublet prediction
+# (using estimates from 10X for loading 16000 cells yielding ~7.6% doublets)
+n_exp <- round(0.076 * nrow(s_obj@meta.data))
+
+# Adjust pANN threshold with estimated proportion of homotypic doublets
+prop_homotypic <- modelHomotypic(s_obj@meta.data$seurat_clusters)
+n_exp_adj <- round(n_exp * (1 - prop_homotypic))
+
+# Run DoubletFinder with varying stringency criteria
+s_obj <- doubletFinder_v3(s_obj,
+                          PCs        = 1:npcs,
+                          pN         = 0.25,
+                          pK         = pK_estimate,
+                          nExp       = n_exp,
+                          reuse.pANN = FALSE,
+                          sct        = FALSE)
+```
+
+```{r Integrate datasets}
 # Split data into each original sample
 s_obj_list <- SplitObject(s_obj, split.by = "orig.ident")
-
-# Define number of PCs and variable features
-npcs <- 50
-nfeatures <- 3000
 
 # Normalise and find highest variable features per dataset
 for (i in 1:length(s_obj_list)) {
