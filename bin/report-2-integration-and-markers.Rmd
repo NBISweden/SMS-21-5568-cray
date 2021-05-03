@@ -113,15 +113,15 @@ markers in each cell and cluster.
 ```{r Get cell type markers}
 # Read cell type markers
 cell_type_markers <- read.table(params$cell_type_markers,
-                               sep              = ",",
-                               header           = TRUE,
-                               stringsAsFactors = FALSE)
+                                sep              = ",",
+                                header           = TRUE,
+                                stringsAsFactors = FALSE)
 
 # Read transcriptome ID mappings
 marker_mapping <- read.table(params$transcriptome_id_map,
-                   sep              = "\t",
-                   header           = TRUE,
-                   stringsAsFactors = FALSE)
+                             sep              = "\t",
+                             header           = TRUE,
+                             stringsAsFactors = FALSE)
 marker_mapping$original_id <- gsub("_", "-", marker_mapping$original_id)
 
 # Merge to get original IDs used in the Seurat object
@@ -164,6 +164,32 @@ however, see a slight pattern in the expression of the `comp36642-c0-seq6`
 transcript, in that it is slightly more expressed in cluster 4, 5, 6 and 10 -
 most of the cells in these clusters do not, however, express this transcript at
 all, but it is the only discernible pattern here.
+
+Below we also plot some additional markers that arose as interesting during the
+analyses; most features are not highly expressed in any clusters, but a small
+number of them stand out as having one or a few clusters with higher expression
+than others: PACIHC, PXN, TGA1 and VMO1.
+
+```{r Plot additional markers, fig.height = 48}
+# Add manual features from group
+additional_markers <- c("A2m", "CHF", "CP", "Dclk1", "Dclk2", "Drgx",
+                        "Dscam2", "Dscaml1", "KPI-46742", "KPIc", "LGBP",
+                        "MAP2", "MAS", "MBL", "Nmdar1", "PACIHC", "PAPI",
+                        "PLCSP", "PPA", "ProPO", "PVF", "PVR", "PXN",
+                        "SGC-KPI", "SOD", "SPH1", "SPH2", "TGA1", "TGA2",
+                        "VMO1")
+
+# Plot marker expression
+FeaturePlot(s_obj_integrated,
+            reduction = "umap",
+            order     = TRUE,
+            ncol      = 2,
+            features  = additional_markers)
+VlnPlot(s_obj_integrated,
+        assay    = "RNA",
+        ncol     = 2,
+        features = additional_markers)
+```
 
 ```{r Save RDS object}
 saveRDS(s_obj_integrated, file = params$output_seurat_object)
