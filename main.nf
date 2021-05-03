@@ -197,6 +197,9 @@ workflow pre_processing {
 
 process build_tx2gene_and_fasta {
     // Build the tx2gene mapping and transcriptome + mitochondrion FASTA
+    publishDir "${resultsdir}/idx/",
+        mode: "copy"
+
     input:
     path(blast_xml)
     path(transcript_fasta)
@@ -225,8 +228,9 @@ process build_tx2gene_and_fasta {
         > tx2gene-pre-manual.tsv
 
     # Add manual mappings from the group
-    join -a1 -a2 -e- ${manual_tx2gene} <(sort tx2gene-pre-manual.tsv) \
+    join -a1 -a2 -e- <(sort ${manual_tx2gene}) <(sort tx2gene-pre-manual.tsv) \
         | tr ' ' '\t' \
+        | cut -f 1,2 \
         > tx2gene-pre-mito.tsv
 
     # Add mitochondrion genome entry to tx2gene
