@@ -44,6 +44,7 @@ suppressPackageStartupMessages({
 ```{r Data and variables}
 # Read filtered data
 s_obj <- readRDS(params$input_seurat_object)
+# s_obj <- readRDS("results/seurat/01-quality_controls/seurat-qc.rds")
 
 # Define number of PCs and variable features
 npcs <- 50
@@ -108,18 +109,38 @@ anchors <- FindIntegrationAnchors(object.list = s_obj_list,
 s_obj_integrated <- IntegrateData(anchorset      = anchors,
                                   dims           = 1:npcs,
                                   new.assay.name = "CCA")
-```
 
-```{r Scaling and clustering}
-# Run scaling, PCA and UMAP on data
+# Run scaling, regression, PCA and find nearest neighbours
 to_regress <- c("percent_mito", "percent_ribo", "percent_hsp", "nFeature_RNA",
                 "S.Score", "G2M.Score")
 s_obj_integrated <- ScaleData(s_obj_integrated, vars.to.regress = to_regress)
 s_obj_integrated <- RunPCA(s_obj_integrated, npcs = npcs, verbose = FALSE)
+s_obj_integrated <- FindNeighbors(s_obj_integrated, dims = 1:npcs)
+```
+
+```{r Find optimal cluster resolution, eval = FALSE, include = FALSE}
+# Find optimal cluster resolution
+for (resolution in seq(0.1, 2.0, by = 0.1)) {
+    s_obj_temp <- FindClusters(s_obj_integrated, resolution = resolution)
+    s_obj_temp <- RunUMAP(s_obj_temp, dims = 1:npcs)
+    print(DimPlot(s_obj_temp,
+            reduction = "umap",
+            group.by  = "seurat_clusters",
+            label     = TRUE) +
+        ggtitle(paste("Resolution =", resolution)) +
+        NoAxes())
+}
+```
+
+```{r Find clusters at optimal resolution and run UMAP}
+s_obj_integrated <- FindClusters(s_obj_integrated,
+                                 resolution = 0.7,
+                                 verbose    = FALSE)
 s_obj_integrated <- RunUMAP(s_obj_integrated, dims = 1:npcs)
 ```
 
 ```{r Plot integrated clusters}
+# Plot clusters
 plot_grid(ncol = 2,
     DimPlot(s_obj, reduction = "umap", group.by = "orig.ident") +
         NoAxes() +
