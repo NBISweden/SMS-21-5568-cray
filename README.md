@@ -23,27 +23,22 @@ conda deactivate nextflow-env
 ```
 ### Using Docker
 
-```bash
-# Build the Docker image
-docker build -t nbis-5568 .
+Public images are used where possible
 
+```bash
 # Run the pre-processing workflow
-nextflow run . -use-docker nbis-5568 -entry pre_processing
+nextflow run . -profile uppmax,docker -entry pre_processing
 
 # Run the analysis workflow
-nextflow run . -use-docker nbis-5568
+nextflow run . -profile uppmax,docker
 ```
 
 ### Using Conda
 
 ```bash
-# Create and activate the Conda environment
-conda env create -p 5568-env -f environment.yml
-conda activate 5568-env/
-
 # Run the pre-processing workflow
-nextflow run . -entry pre_processing
+nextflow run . -profile uppmax,conda -entry pre_processing
 
 # Run the analysis workflow
-nextflow run .
+nextflow run . -profile uppmax,conda
 ```
