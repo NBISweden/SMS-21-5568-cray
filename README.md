@@ -14,6 +14,13 @@ from the Söderhall group's previous work, while the mitochondrion genome can be
 found at the [NCBI website](https://www.ncbi.nlm.nih.gov/nuccore/NC_033509.1/).
 The analyses can be reproduced using either Docker or Conda.
 
+Nextflow is run from it's own conda environment whether using docker, singularity, or conda packages.
+```bash
+conda install -n nextflow-env nextflow
+conda activate nextflow-env
+nextflow run ...
+conda deactivate nextflow-env
+```
 ### Using Docker
 
 ```bash
