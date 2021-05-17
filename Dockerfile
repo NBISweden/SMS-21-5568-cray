@@ -1,4 +1,5 @@
 FROM ubuntu:16.04
+# Maybe use the mambaorg/micromamba:0.13.0 as a base to avoid lengthy conda installs.
 
 LABEL description = "Dockerfile for the #5568 NBIS support project"
 MAINTAINER "Erik Fasterius" erik.fasterius@nbis.se
