@@ -59,6 +59,7 @@ process map_transcriptome_ids {
         | cut -d ' ' -f 1,5 \
         | tr -d '>' \
         | tr ' ' '\t' \
+        | cut -d '_' -f 1,2 \
         >> transcriptome_id_map.tsv
     """
 }
@@ -222,9 +223,10 @@ process build_tx2gene_and_fasta {
         > tx2gene-joined.tsv
 
     # Add transcript IDs as gene IDs when no annotation is available
+    # (remove `_seqZ` part for summing to "gene" level)
     paste \
         <(cut -d ' ' -f 1 tx2gene-joined.tsv) \
-        <(cut -d ' ' -f 2 tx2gene-joined.tsv) \
+        <(cut -d ' ' -f 2 tx2gene-joined.tsv | cut -f 1,2 -d '_') \
         > tx2gene-pre-manual.tsv
 
     # Add manual mappings from the group
