@@ -1,0 +1,12 @@
+channels:
+    - conda-forge
+    - bioconda
+    - defaults
+dependencies:
+
+    # Languages
+    - python=3.6.12
+
+    # Python packages
+    - argparse=1.4.0
+    - elementpath=2.1.3
