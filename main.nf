@@ -67,6 +67,7 @@ process merge_cells {
     // Merge same-sample cells
     publishDir "${resultsdir}/seurat/00-merged-cells",
         mode: "copy"
+    label 'Rscript'
 
     input:
     path(gene_expression)
@@ -84,6 +85,7 @@ process quality_controls {
     // Basic QC plots and filtering
     publishDir "${resultsdir}/seurat/01-quality_controls/",
         mode: "copy"
+    label 'Rscript'
 
     input:
     path(report)
@@ -111,6 +113,7 @@ process integration {
     // Sample integration and known cell type marker expression
     publishDir "${resultsdir}/seurat/02-integration-and-markers",
         mode: "copy"
+    label 'Rscript'
 
     input:
     path(report)
@@ -142,6 +145,7 @@ process differential_expression {
     // Differential expression analyses
     publishDir "${resultsdir}/seurat/03-differential-expression",
         mode: "copy"
+    label 'Rscript'
 
     input:
     path(report)
@@ -247,6 +251,7 @@ process salmon_index {
     // Index the transcriptome for use in downstream analyses
     publishDir "${resultsdir}/idx/",
         mode: "copy"
+    label 'salmon'
 
     input:
     path(fasta)
@@ -291,6 +296,7 @@ process quantify_expression {
     tag "${sample_name}"
     publishDir "${resultsdir}/expression/",
         mode: "copy"
+    label 'salmon'
 
     input:
     tuple val(sample_name), path(sample_fastq)
@@ -319,6 +325,7 @@ process alevin_quality_controls {
     tag "${sample_name}"
     publishDir "${resultsdir}/expression/${sample_name}",
         mode: "copy"
+    label 'Rscript'
 
     input:
     tuple val(sample_name), path(alevin_output)
