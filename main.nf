@@ -83,8 +83,12 @@ process merge_cells {
 
 process quality_controls {
     // Basic QC plots and filtering
-    publishDir "${resultsdir}/seurat/01-quality_controls/",
-        mode: "copy"
+    publishDir "${resultsdir}",
+        mode: "copy",
+        saveAs: { filename ->
+            filename.indexOf(".html") > 0 ? \
+                "${filename}" : "seurat/01-quality_controls/${filename}"
+        }
 
     input:
     path(report)
@@ -110,8 +114,12 @@ process quality_controls {
 
 process integration {
     // Sample integration and known cell type marker expression
-    publishDir "${resultsdir}/seurat/02-integration-and-markers",
-        mode: "copy"
+    publishDir "${resultsdir}",
+        mode: "copy",
+        saveAs: { filename ->
+            filename.indexOf(".html") > 0 ? \
+                "${filename}" : "seurat/02-integration-and-markers/${filename}"
+        }
 
     input:
     path(report)
@@ -141,8 +149,12 @@ process integration {
 
 process differential_expression {
     // Differential expression analyses
-    publishDir "${resultsdir}/seurat/03-differential-expression",
-        mode: "copy"
+    publishDir "${resultsdir}",
+        mode: "copy",
+        saveAs: { filename ->
+            filename.indexOf(".html") > 0 ? \
+                "${filename}" : "seurat/03-differential_expression/${filename}"
+        }
 
     input:
     path(report)
