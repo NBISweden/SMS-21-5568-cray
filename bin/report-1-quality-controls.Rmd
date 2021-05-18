@@ -157,8 +157,8 @@ plot_hvg(s_obj)
 The fourth plot shows the genes with the highest proportion of counts per cell.
 Some of these are mitochondrial and ribosomal genes, indicating possible low
 quality cells. Other genes of interest are `pol`, `NIrc3`, `His3` and the
-un-annotated `comp36811-c0-seq6` transcript. If these features are not of
-interest we could consider removing them from the subsequent analyses.
+un-annotated `comp36811-c0` transcript. If these features are not of interest
+we could consider removing them from the subsequent analyses.
 
 ```{r Plot highest counts per cell}
 plot_highest_percentages(s_obj)
@@ -171,7 +171,7 @@ first figure shows the clustering with the cells coloured by their sample,
 showing that the largest driving factor of the clustering here seems to be the
 sample of origin. There are some cells from both samples that cluster with the
 other, however. The second figure shows the clustering coloured by the clusters
-themselves, all 17 of them.
+themselves.
 
 We then want to see if any of the clusters are driven by any of the QC metrics
 we already investigated above - this is what the last plot (with six panels)
@@ -288,3 +288,5 @@ s_obj <- cluster_cells(s_obj, nfeatures = 2000)
 ```{r Save to RDS}
 saveRDS(s_obj, file = params$output_seurat_object)
 ```
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

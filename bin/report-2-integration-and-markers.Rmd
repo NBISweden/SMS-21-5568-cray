@@ -121,7 +121,9 @@ s_obj_integrated <- FindNeighbors(s_obj_integrated, dims = 1:npcs)
 ```{r Find optimal cluster resolution, eval = FALSE, include = FALSE}
 # Find optimal cluster resolution
 for (resolution in seq(0.1, 2.0, by = 0.1)) {
-    s_obj_temp <- FindClusters(s_obj_integrated, resolution = resolution)
+    s_obj_temp <- FindClusters(s_obj_integrated,
+                               resolution = resolution,
+                               verbose    = FALSE)
     s_obj_temp <- RunUMAP(s_obj_temp, dims = 1:npcs)
     print(DimPlot(s_obj_temp,
             reduction = "umap",
@@ -246,3 +248,5 @@ VlnPlot(s_obj_integrated,
 ```{r Save RDS object}
 saveRDS(s_obj_integrated, file = params$output_seurat_object)
 ```
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

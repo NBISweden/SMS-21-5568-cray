@@ -185,3 +185,5 @@ for (cluster in sort(unique(markers$cluster))) {
     show(cowplot::plot_grid(plotlist = plot_list))
 }
 ```
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
