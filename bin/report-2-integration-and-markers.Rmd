@@ -124,7 +124,7 @@ for (resolution in seq(0.1, 2.0, by = 0.1)) {
     s_obj_temp <- FindClusters(s_obj_integrated,
                                resolution = resolution,
                                verbose    = FALSE)
-    s_obj_temp <- RunUMAP(s_obj_temp, dims = 1:npcs)
+    s_obj_temp <- RunUMAP(s_obj_temp, dims = 1:npcs, use.seed = 42)
     print(DimPlot(s_obj_temp,
             reduction = "umap",
             group.by  = "seurat_clusters",
@@ -138,7 +138,7 @@ for (resolution in seq(0.1, 2.0, by = 0.1)) {
 s_obj_integrated <- FindClusters(s_obj_integrated,
                                  resolution = 0.7,
                                  verbose    = FALSE)
-s_obj_integrated <- RunUMAP(s_obj_integrated, dims = 1:npcs)
+s_obj_integrated <- RunUMAP(s_obj_integrated, dims = 1:npcs, use.seed = 42)
 ```
 
 ```{r Plot integrated clusters}
