@@ -153,7 +153,7 @@ process differential_expression {
         mode: "copy",
         saveAs: { filename ->
             filename.indexOf(".html") > 0 ? \
-                "${filename}" : "seurat/03-differential_expression/${filename}"
+                "${filename}" : "seurat/03-differential-expression/${filename}"
         }
 
     input:
