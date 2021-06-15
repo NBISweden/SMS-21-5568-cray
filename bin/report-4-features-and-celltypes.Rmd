@@ -108,6 +108,39 @@ for (current_group in unique(features_to_plot$group)) {
 }
 ```
 
+# Sample distributions
+
+Plot the sample distributions per cluster.
+
+```{r Plot sample distributions}
+# Get sample distributions per clusters
+distribution <- s_obj@meta.data %>%
+    group_by(seurat_clusters) %>%
+    count(orig.ident) %>%
+    mutate(prop = n/sum(n) * 100)
+
+# Plot counts and proportions
+gg_count <- ggplot(distribution, aes(x    = seurat_clusters,
+                                     y    = n,
+                                     fill = orig.ident)) +
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
+    theme_classic() +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(x = "Cluster", y = "Count", fill = "Sample") +
+    ggtitle("Counts")
+gg_prop <- ggplot(distribution, aes(x    = seurat_clusters,
+                                    y    = prop,
+                                    fill = orig.ident)) +
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = paste0(round(prop, 1), "%")),
+                  position = position_stack(vjust = 0.5)) +
+    theme_classic() +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(x = "Cluster", y = "Proportion (%)", fill = "Sample") +
+    ggtitle("Proportions")
+plot_grid(gg_count, gg_prop, ncol = 2)
+```
 
 <!-- Remove whitespace at end of document due to using floating ToC -->
 <div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
