@@ -10,13 +10,16 @@ workflow {
     // NCBI transcriptome
     ncbi_transcriptome = file("https://sra-download.ncbi.nlm.nih.gov/traces/wgs03/wgs_aux/GB/YW/GBYW01/GBYW01.1.fsa_nt.gz")
 
-    // Known cell type markers
+    // Other data files
     cell_type_markers = file("data/cell-type-markers.csv")
+    features_to_plot = file("data/features-to-plot.tsv")
+    cluster_cell_types = file("data/cluster-cell-types.tsv")
 
     // Report files
     report_1_qc = file("bin/report-1-quality-controls.Rmd")
     report_2_integration = file("bin/report-2-integration-and-markers.Rmd")
     report_3_de = file("bin/report-3-differential-expression.Rmd")
+    report_4_plots = file("bin/report-4-features-and-celltypes.Rmd")
 
     // Input files
     Channel
@@ -34,6 +37,10 @@ workflow {
                 cell_type_markers)
     differential_expression(report_3_de,
                             integration.out.seurat_object)
+    features_and_celltypes(report_4_plots,
+                           integration.out.seurat_object,
+                           features_to_plot,
+                           cluster_cell_types)
 }
 
 process map_transcriptome_ids {
@@ -169,6 +176,34 @@ process differential_expression {
     #!/usr/bin/env Rscript
     parameters <- list(root_directory       = getwd(),
                        input_seurat_object  = "${seurat_object}")
+    output_report <- gsub(".Rmd", ".html", basename("${report}"))
+    rmarkdown::render("${report}",
+                      params      = parameters,
+                      output_dir  = getwd(),
+                      output_file = output_report)
+    """
+}
+
+process features_and_celltypes {
+    publishDir "${resultsdir}/",
+        mode: "copy"
+
+    input:
+    path(report)
+    path(seurat_object)
+    path(features_to_plot)
+    path(cluster_cell_types)
+
+    output:
+    path("report-4-features-and-celltypes.html")
+
+    script:
+    """
+    #!/usr/bin/env Rscript
+    parameters <- list(root_directory       = getwd(),
+                       input_seurat_object  = "${seurat_object}",
+                       features_to_plot     = "${features_to_plot}",
+                       cluster_cell_types   = "${cluster_cell_types}")
     output_report <- gsub(".Rmd", ".html", basename("${report}"))
     rmarkdown::render("${report}",
                       params      = parameters,
