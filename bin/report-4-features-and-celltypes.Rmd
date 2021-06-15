@@ -60,7 +60,32 @@ cluster_cell_types <- read.table(params$cluster_cell_types,
                                  stringsAsFactors = FALSE)
 ```
 
+# Cell types
+
+Plot the clusters using manual cell type annotations from the DE-analyses.
+
+```{r Plot cell types}
+# Annotate with manual cell type annotations
+cell_types <- cluster_cell_types[Idents(s_obj), "cell_type"]
+names(cell_types) <- colnames(s_obj)
+s_obj <- AddMetaData(object   = s_obj,
+                     metadata = cell_types,
+                     col.name = 'cell_type')
+
+# Plot
+DimPlot(s_obj,
+        reduction = "umap",
+        group.by  = "cell_type",
+        label     = TRUE) +
+    NoAxes() +
+    NoLegend() +
+    ggtitle("Cell types")
+```
+
 # Feature plots
+
+Plot sets of manually chosen features that are of special interest and their
+expression in all the different clusters.
 
 ```{r Plot manual features}
 for (current_group in unique(features_to_plot$group)) {
@@ -83,23 +108,6 @@ for (current_group in unique(features_to_plot$group)) {
 }
 ```
 
-# Cell types
-
-```{r Plot cell types}
-# Annotate with manual cell type annotations
-s_obj@meta.data <- merge(s_obj@meta.data,
-                         cluster_cell_types,
-                         by.x = "seurat_clusters",
-                         by.y = "cluster")
-
-# Plot
-DimPlot(s_obj,
-        reduction = "umap",
-        group.by  = "cell_type",
-        label     = FALSE) +
-    NoAxes() +
-    ggtitle("Cell types")
-```
 
 <!-- Remove whitespace at end of document due to using floating ToC -->
 <div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
