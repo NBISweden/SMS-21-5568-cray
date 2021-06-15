@@ -75,6 +75,13 @@ s_obj <- AddMetaData(object   = s_obj,
 # Plot
 DimPlot(s_obj,
         reduction = "umap",
+        group.by  = "seurat_clusters",
+        label     = TRUE) +
+    NoAxes() +
+    NoLegend() +
+    ggtitle("Clusters")
+DimPlot(s_obj,
+        reduction = "umap",
         group.by  = "cell_type",
         label     = TRUE) +
     NoAxes() +
