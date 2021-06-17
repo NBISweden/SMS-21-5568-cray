@@ -58,7 +58,7 @@ types to help clustering and downstream analyses. This only affects cells that
 are the same in the two samples; different cell types will still yield separate
 clusters.
 
-```{r Remove doublets, results = FALSE, include = FALSE, eval = FALSE}
+```{r Remove doublets, results = FALSE, fig.show = 'hide', eval = FALSE, include = FALSE}
 # Estimate ideal PC neighbourhood size for computing pANN
 # (proportion of artifical k nearest neighbours)
 library("DoubletFinder")
@@ -85,6 +85,8 @@ s_obj <- doubletFinder_v3(s_obj,
                           nExp       = n_exp,
                           reuse.pANN = FALSE,
                           sct        = FALSE)
+names(s_obj@meta.data)[[length(s_obj@meta.data)]] <- "doublet_finder"
+s_obj <- subset(s_obj, subset = doublet_finder == "Singlet")
 ```
 
 ```{r Integrate datasets}
