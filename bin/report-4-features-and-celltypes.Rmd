@@ -51,6 +51,7 @@ features_to_plot <- read.table(params$features_to_plot,
                                sep              = "\t",
                                header           = TRUE,
                                stringsAsFactors = FALSE)
+features_to_plot$feature <- gsub("_", "-", features_to_plot$feature)
 
 # Cluster cell types
 cluster_cell_types <- read.table(params$cluster_cell_types,
