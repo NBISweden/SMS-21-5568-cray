@@ -2,10 +2,11 @@
 params:
     root_directory: NULL
     input_seurat_object: NULL
+    output_seurat_object: NULL
     features_to_plot: NULL
     cluster_cell_types: NULL
 title: "NBIS Support #5568"
-subtitle: "Features and cell type"
+subtitle: "Features and cell types"
 author: "Erik Fasterius"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
@@ -120,7 +121,7 @@ for (current_group in unique(features_to_plot$group)) {
 
 Plot the sample distributions per cluster.
 
-```{r Plot sample distributions}
+```{r Plot cluster distributions}
 # Get sample distributions per clusters
 distribution <- s_obj@meta.data %>%
     group_by(seurat_clusters) %>%
@@ -148,6 +149,44 @@ gg_prop <- ggplot(distribution, aes(x    = seurat_clusters,
     labs(x = "Cluster", y = "Proportion (%)", fill = "Sample") +
     ggtitle("Proportions")
 plot_grid(gg_count, gg_prop, ncol = 2)
+```
+
+Plot the sample distributions per cell type.
+
+```{r Plot cell type distributions}
+# Get sample distributions per cell type
+distribution <- s_obj@meta.data %>%
+    group_by(cell_type) %>%
+    count(orig.ident) %>%
+    mutate(prop = n/sum(n) * 100)
+
+# Plot counts and proportions
+gg_count <- ggplot(distribution, aes(x    = cell_type,
+                                     y    = n,
+                                     fill = orig.ident)) +
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
+    theme_classic() +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(x = "Cell type", y = "Count", fill = "Sample") +
+    ggtitle("Counts")
+gg_prop <- ggplot(distribution, aes(x    = cell_type,
+                                    y    = prop,
+                                    fill = orig.ident)) +
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = paste0(round(prop, 1), "%")),
+                  position = position_stack(vjust = 0.5)) +
+    theme_classic() +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(x = "Cell type", y = "Proportion (%)", fill = "Sample") +
+    ggtitle("Proportions")
+plot_grid(gg_count, gg_prop, ncol = 2)
+```
+
+```{r Save RDS object}
+saveRDS(s_obj, file = params$output_seurat_object)
 ```
 
 <!-- Remove whitespace at end of document due to using floating ToC -->
