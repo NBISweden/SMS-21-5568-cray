@@ -16,6 +16,7 @@ dependencies:
     - bioconductor-alevinQC=1.6.1
     - bioconductor-fishpond=1.6.0
     - bioconductor-mast=1.16.0
+    - bioconductor-slingshot=1.8.0
     - bioconductor-tximport=1.18.0
     - r-argparse=2.0.3
     - r-cowplot=1.1.1
