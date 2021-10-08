@@ -4,6 +4,7 @@ nextflow.preview.dsl=2
 // Workflow paths
 resultsdir = "results/"
 
+// Analysis workflow
 workflow {
     // Analysis workflow
 
@@ -20,7 +21,6 @@ workflow {
     report_2_integration = file("bin/report-2-integration-and-markers.Rmd")
     report_3_de = file("bin/report-3-differential-expression.Rmd")
     report_4_plots = file("bin/report-4-features-and-celltypes.Rmd")
-    report_5_ti = file("bin/report-5-trajectory-inference.Rmd")
 
     // Input files
     Channel
@@ -42,8 +42,6 @@ workflow {
                            integration.out.seurat_object,
                            features_to_plot,
                            cluster_cell_types)
-    trajectory_inference(report_5_ti,
-                         features_and_celltypes.out.seurat_object)
 }
 
 process map_transcriptome_ids {
@@ -221,6 +219,23 @@ process features_and_celltypes {
     """
 }
 
+
+// Trajectory inference workflow
+workflow infer_trajectories {
+
+    // Input files
+    Channel
+        .fromPath("results/seurat/04-features-and-celltypes/seurat-features-and-celltypes.rds")
+        .toList()
+        .set{ seurat_object }
+
+    report_5_ti = file("bin/report-5-trajectory-inference.Rmd")
+
+    // Run the workflow
+    trajectory_inference(report_5_ti,
+                         seurat_object)
+}
+
 process trajectory_inference {
     container "nbis-5568-tradeseq"
     publishDir "${resultsdir}/",
@@ -251,6 +266,8 @@ process trajectory_inference {
     """
 }
 
+
+// Pre-processing workflow
 workflow pre_processing {
     // Pre-processing workflow
 
