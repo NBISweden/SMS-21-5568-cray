@@ -1,0 +1,423 @@
+---
+params:
+    root_directory: NULL
+    input_seurat_object: NULL
+title: "NBIS Support #5568"
+subtitle: "Features and cell types"
+author: "Erik Fasterius"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+    html_document:
+        code_folding: hide
+        toc: true
+        toc_float:
+            collapsed: true
+---
+
+```{r Setup}
+# Knit options
+knitr::opts_knit$set(root.dir = params$root_directory)
+
+# Chunk options
+knitr::opts_chunk$set(fig.width  = 14,
+                      fig.height = 7,
+                      fig.align  = "center",
+                      message    = FALSE,
+                      warning    = FALSE,
+                      results    = "asis")
+
+# Set seed
+set.seed(42)
+
+# Load packages
+suppressPackageStartupMessages({
+    library("cowplot")
+    library("ggplot2")
+    library("scales")
+    library("Seurat")
+    library("slingshot")
+    library("tidyverse")
+    library("tradeSeq")
+})
+
+# Variables
+nfeatures <- 3000
+npcs <- 50
+
+# Parallelisation
+BiocParallel::register(BiocParallel::SerialParam())
+```
+
+```{r Read data}
+# Seurat object
+s_obj <- readRDS(params$input_seurat_object)
+# s_obj <- readRDS("results/seurat/04-features-and-celltypes/seurat-features-and-celltypes.rds")
+DefaultAssay(s_obj) <- "RNA"
+```
+
+Trajectory inference can only be run on cells where you expect to find some kind
+of dimension of change, *e.g.*  differentiation. We thus start with subsetting
+the data to each of the "clouds" and perform trajectory analysis for each cloud.
+
+```{r Integration functions}
+# Function for re-clustering cells
+# cluster_cells <- function(s_obj,
+                          # nfeatures  = 3000,
+                          # npcs       = 100,
+                          # dims       = 1:50,
+                          # resolution = 0.8) {
+#
+    # # Find the highest variable features
+    # s_obj <- FindVariableFeatures(s_obj,
+                                  # assay            = "RNA",
+                                  # selection.method = "vst",
+                                  # nfeatures        = nfeatures)
+#
+    # # Scale data
+    # to_regress <- c("percent_mito", "nFeature_RNA", "S.Score", "G2M.Score")
+    # s_obj <- ScaleData(s_obj,
+                       # assay           = "RNA",
+                       # vars.to.regress = to_regress)
+#
+    # # Dimensionality reduction and clustering
+    # s_obj <- RunPCA(s_obj,
+                    # npcs     = npcs,
+                    # features = VariableFeatures(object = s_obj))
+    # s_obj <- FindNeighbors(s_obj,
+                           # reduction = "pca",
+                           # dims      = dims,
+                           # verbose   = FALSE)
+    # s_obj <- FindClusters(s_obj,
+                          # reduction  = "pca",
+                          # resolution = resolution,
+                          # verbose    = FALSE)
+#
+    # # Run and plot UMAP
+    # s_obj <- RunUMAP(s_obj,
+                     # dims                 = dims,
+                     # min.dist             = 0.01,
+                     # spread               = 0.3,
+                     # metric               = "cosine",
+                     # n.neighbors          = 15,
+                     # repulsion.strength   = 0.5,
+                     # negative.sample.rate = 20,
+                     # n.epochs             = 100,
+                     # verbose              = FALSE)
+#
+    # # Return Seurat object
+    # return(s_obj)
+# }
+
+# Function to re-integrate and re-cluster data
+integrate_data <- function(s_obj,
+                           split_by   = "orig.ident",
+                           resolution = 0.8,
+                           dims       = 50,
+                           nfeatures  = 3000) {
+
+    # Split data into each original sample
+    s_obj_list <- SplitObject(s_obj, split.by = split_by)
+
+    # Normalise and find highest variable features per dataset
+    for (i in 1:length(s_obj_list)) {
+        s_obj_list[[i]] <- NormalizeData(s_obj_list[[i]], verbose = FALSE)
+        s_obj_list[[i]] <- FindVariableFeatures(s_obj_list[[i]],
+                                                selection.method = "vst",
+                                                nfeatures        = nfeatures,
+                                                verbose          = FALSE)
+    }
+
+    # Find integration anchors
+    anchors <- FindIntegrationAnchors(object.list = s_obj_list,
+                                      dims        = 1:dims,
+                                      reduction   = "cca")
+
+    # Integrate the samples with the identified anchors
+    s_obj_integrated <- IntegrateData(anchorset      = anchors,
+                                      dims           = 1:npcs,
+                                      new.assay.name = "CCA")
+
+    # Run scaling, regression, PCA and find nearest neighbours
+    to_regress <- c("percent_mito", "percent_ribo", "nFeature_RNA", "nCount_RNA")
+    s_obj_integrated <- ScaleData(s_obj_integrated, vars.to.regress = to_regress)
+    s_obj_integrated <- RunPCA(s_obj_integrated, npcs = dims, verbose = FALSE)
+    s_obj_integrated <- FindNeighbors(s_obj_integrated, dims = 1:dims)
+
+    # Cluster integrated data
+    s_obj_integrated <- FindClusters(s_obj_integrated,
+                                     resolution = resolution,
+                                     verbose    = FALSE)
+    s_obj_integrated <- RunUMAP(s_obj_integrated,
+                                dims = 1:dims)
+
+    # Set default assay to RNA
+    DefaultAssay(s_obj_integrated) <- "RNA"
+
+    # Return integrated object
+    return(s_obj_integrated)
+}
+```
+
+```{r Trajectory inference functions}
+# Function to get colours for trajectory plots
+get_colours_for_trajectory <- function(grouping_values) {
+
+    # Get palette for the specified grouping values
+    categories <- sort(unique(grouping_values))
+    palette <- setNames(hue_pal()(length(categories)), categories)
+
+    # Return grouping values with corresponding colours
+    return(palette[grouping_values])
+}
+
+# Function for getting Slingshot lineages
+infer_trajectories <- function(s_obj,
+                               grouping_variable = "seurat_clusters",
+                               reduction         = "umap",
+                               approx_points     = 300) {
+
+    # Get lineages
+    dim_red <- s_obj@reductions[[reduction]]@cell.embeddings
+    grouping_values <- factor(s_obj@meta.data[, grouping_variable])
+    lineages <- getLineages(data          = dim_red,
+                            clusterLabels = grouping_values)
+
+    # Get curves
+    curves <- getCurves(lineages,
+                        approx_points = approx_points,
+                        allow.breaks  = FALSE,
+                        thresh        = 0.01,
+                        stretch       = 0.8,
+                        shrink        = 0.99)
+
+    # Get colour palette for the specified grouping values
+    categories <- sort(unique(grouping_values))
+    palette <- setNames(hue_pal()(length(categories)), categories)
+
+    # Initialise three-column plot
+    par(mfrow = c(1, 3))
+
+    # Plot clusters
+    plot(dim_red[, 1:2],
+         col = palette[grouping_values],
+         cex = .5,
+         pch = 16)
+    for(ii in levels(grouping_values)) {
+      text(mean(dim_red[grouping_values == ii, 1]),
+           mean(dim_red[grouping_values == ii, 2]),
+           labels = ii,
+           font   = 2)
+    }
+
+    # Plot lineages
+    plot(dim_red[, 1:2],
+         col = palette[grouping_values],
+         cex = .5,
+         pch = 16)
+    lines(SlingshotDataSet(lineages),
+          lwd = 3,
+          col = "black")
+
+    # Plot curves
+    plot(dim_red[, 1:2],
+         col = palette[grouping_values],
+         cex = .5,
+         pch = 16)
+    lines(SlingshotDataSet(curves),
+          lwd = 3,
+          col = "black")
+
+    # Return the curves
+    return(curves)
+}
+```
+
+```{r Trajectory DEA functions}
+# Function to fit generalised additive model
+fit_gam <- function(s_obj,
+                    curves,
+                    plot_knots        = FALSE,
+                    nfeatures         = 2000,
+                    hvg_assay         = "CCA",
+                    grouping_variable = "seurat_clusters") {
+
+    # Find highest variable features
+    s_obj <- FindVariableFeatures(s_obj,
+                                  assay     = hvg_assay,
+                                  nfeatures = nfeatures)
+    hvg <- VariableFeatures(s_obj, assay = hvg_assay)
+
+    # Fit GAM
+    counts <- as.matrix(s_obj@assays$RNA@counts)
+    sce <- fitGAM(counts = counts,
+                  genes  = hvg,
+                  sds    = curves)
+
+    # Plot knots (if applicable)
+    if (plot_knots) {
+        grouping_values <- factor(s_obj@meta.data[, grouping_variable])
+        gg <- plotGeneCount(curves,
+                            models   = sce,
+                            counts   = counts,
+                            clusters = grouping_values)
+        show(gg)
+    }
+
+    # Return fitted model
+    return(sce)
+}
+
+# Function to plot trajectory DEGs
+plot_trajectory_deg <- function(feature_id,
+                                sce,
+                                s_obj,
+                                curves,
+                                grouping_variable = "seurat_clusters") {
+    # Plot knots
+    grouping_values <- factor(s_obj@meta.data[, grouping_variable])
+    counts <- as.matrix(s_obj@assays$RNA@counts)
+    gg1 <- plotGeneCount(curves,
+                         counts,
+                         clusters = grouping_values,
+                         models   = sce,
+                         gene     = feature_id) +
+        theme(legend.position = "none") +
+        ggtitle(feature_id)
+
+    # Plot gene smoothers
+    gg2 <- plotSmoothers(sce, counts, gene = feature_id)
+    gg <- plot_grid(gg1, gg2)
+
+    # Return graphical object
+    return(gg)
+}
+
+# Function to get trajectory DEGs
+get_trajectory_degs <- function(sce,
+                                s_obj,
+                                curves,
+                                FUN          = associationTest,
+                                l2fc         = log2(2),
+                                p_val_cutoff = 0.05,
+                                lineages     = TRUE,
+                                top_n        = 10) {
+
+    # Get trajectory DEGs
+    res <- FUN(sce, lineages = lineages, l2fc = l2fc)
+
+    # Filter DEGs
+    degs <- res %>%
+        filter(pvalue < p_val_cutoff) %>%
+        arrange(desc(waldStat))
+
+    # Plot top n DEGs
+    gg_list <- list()
+    for (feature_id in row.names(degs)[1:top_n]) {
+        gg <- plot_trajectory_deg(feature_id, sce, s_obj, curves)
+        gg_list[[length(gg_list) + 1]] <- gg
+    }
+    gg <- plot_grid(plotlist = gg_list, ncol = 1)
+    show(gg)
+
+    # Return list of DEGs
+    return(degs)
+}
+```
+
+# Left cloud
+
+```{r Subset to LC cells}
+# Subset cells and re-integrate
+s_obj_LC <- subset(s_obj, subset = cell_type %in% c("g1",
+                                                    "g2",
+                                                    "g3",
+                                                    "sg1",
+                                                    "sg2"))
+```
+
+```{r Find ideal LC trajectories, fig.width = 21, eval = FALSE, include = FALSE}
+# Run trajectory analyses for each resolution
+resolutions <- seq(0.1, 1.0, 0.1)
+for (resolution in resolutions) {
+    s_obj_LC_current <- integrate_data(s_obj_LC, resolution = resolution)
+    trajectories <- infer_trajectories(s_obj_LC_current)
+}
+```
+
+```{r Integrate LC data}
+# Integrate data
+s_obj_LC <- integrate_data(s_obj_LC, resolution = 0.2)
+
+# Plot cell types
+gg1 <- DimPlot(s_obj_LC, group.by = "seurat_clusters", label = TRUE)
+gg2 <- DimPlot(s_obj_LC, group.by = "cell_type", label = TRUE)
+gg <- plot_grid(gg1, gg2, ncol = 2)
+gg
+```
+
+```{r Infer LC trajectories, fig.width = 7, eval = FALSE}
+# Infer trajectories
+curves_LC <- infer_trajectories(s_obj_LC, "seurat_clusters")
+
+# Fit GAM
+sce_LC <- fit_gam(s_obj_LC, curves_LC)
+```
+
+```{r Get LC trajectory DEGs, fig.height = 70, fig.width = 14, eval = FALSE}
+# DEGs associated with change across trajectories
+degs_LC <- get_trajectory_degs(sce    = sce_LC,
+                               s_obj  = s_obj_LC,
+                               curves = curves_LC,
+                               FUN    = associationTest)
+```
+
+# Right cloud
+
+```{r Subset to RC cells}
+# Subset cells and re-integrate
+s_obj_RC <- subset(s_obj, subset = cell_type %in% c("pro_hemocyte_1",
+                                                    "pro_hemocyte_2",
+                                                    "progenitor",
+                                                    "immune_cell",
+                                                    "unknown",
+                                                    "PASIHC"))
+```
+
+```{r Find ideal RC trajectories, fig.width = 21, eval = FALSE, include = FALSE}
+# Run trajectory analyses for each resolution
+resolutions <- seq(0.1, 1.0, 0.1)
+for (resolution in resolutions) {
+    s_obj_RC_current <- integrate_data(s_obj_RC, resolution = resolution)
+    trajectories <- infer_trajectories(s_obj_RC_current)
+}
+```
+
+```{r Integrate RC data}
+# Integrate data
+s_obj_RC <- integrate_data(s_obj_RC, resolution = 0.2)
+
+# Plot cell types
+gg1 <- DimPlot(s_obj_RC, group.by = "seurat_clusters", label = TRUE)
+gg2 <- DimPlot(s_obj_RC, group.by = "cell_type", label = TRUE)
+gg <- plot_grid(gg1, gg2, ncol = 2)
+gg
+```
+
+```{r Infer RC trajectories, fig.width = 7, eval = FALSE}
+# Infer trajectories
+curves_RC <- infer_trajectories(s_obj_RC, "seurat_clusters")
+
+# Fit GAM
+sce_RC <- fit_gam(s_obj_RC, curves_RC)
+```
+
+```{r Get RC trajectory DEGs, fig.height = 70, fig.width = 14, eval = FALSE}
+# DEGs associated with change across trajectories
+degs_RC <- get_trajectory_degs(sce    = sce_RC,
+                               s_obj  = s_obj_RC,
+                               curves = curves_RC,
+                               FUN    = associationTest)
+```
+
+<!-- Remove whitespace at end of document due to using floating ToC -->
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

@@ -20,6 +20,7 @@ workflow {
     report_2_integration = file("bin/report-2-integration-and-markers.Rmd")
     report_3_de = file("bin/report-3-differential-expression.Rmd")
     report_4_plots = file("bin/report-4-features-and-celltypes.Rmd")
+    report_5_ti = file("bin/report-5-trajectory-inference.Rmd")
 
     // Input files
     Channel
@@ -41,6 +42,8 @@ workflow {
                            integration.out.seurat_object,
                            features_to_plot,
                            cluster_cell_types)
+    trajectory_inference(report_5_ti,
+                         features_and_celltypes.out.seurat_object)
 }
 
 process map_transcriptome_ids {
@@ -186,7 +189,11 @@ process differential_expression {
 
 process features_and_celltypes {
     publishDir "${resultsdir}/",
-        mode: "copy"
+        mode: "copy",
+        saveAs: { filename ->
+            filename.indexOf(".html") > 0 ? \
+                "${filename}" : "seurat/04-features-and-celltypes/${filename}"
+        }
 
     input:
     path(report)
@@ -196,14 +203,46 @@ process features_and_celltypes {
 
     output:
     path("report-4-features-and-celltypes.html")
+    path("seurat-features-and-celltypes.rds", emit: seurat_object)
 
     script:
     """
     #!/usr/bin/env Rscript
     parameters <- list(root_directory       = getwd(),
                        input_seurat_object  = "${seurat_object}",
+                       output_seurat_object = "seurat-features-and-celltypes.rds",
                        features_to_plot     = "${features_to_plot}",
                        cluster_cell_types   = "${cluster_cell_types}")
+    output_report <- gsub(".Rmd", ".html", basename("${report}"))
+    rmarkdown::render("${report}",
+                      params      = parameters,
+                      output_dir  = getwd(),
+                      output_file = output_report)
+    """
+}
+
+process trajectory_inference {
+    container "nbis-5568-tradeseq"
+    publishDir "${resultsdir}/",
+        mode: "copy",
+        saveAs: { filename ->
+            filename.indexOf(".html") > 0 ? \
+                "${filename}" : "seurat/05-trajectory-inference/${filename}"
+        }
+
+    input:
+    path(report)
+    path(seurat_object)
+
+    output:
+    path("report-5-trajectory-inference.html")
+    // path("seurat-trajectory-inference.rds", emit: seurat_object)
+
+    script:
+    """
+    #!/usr/bin/env Rscript
+    parameters <- list(root_directory       = getwd(),
+                       input_seurat_object  = "${seurat_object}")
     output_report <- gsub(".Rmd", ".html", basename("${report}"))
     rmarkdown::render("${report}",
                       params      = parameters,
