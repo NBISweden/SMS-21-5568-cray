@@ -282,10 +282,12 @@ plot_trajectory_deg <- function(feature_id,
                          models   = sce,
                          gene     = feature_id) +
         theme(legend.position = "none") +
+        labs(x = "UMAP_1", y = "UMAP_2") +
         ggtitle(feature_id)
 
     # Plot gene smoothers
-    gg2 <- plotSmoothers(sce, counts, gene = feature_id)
+    gg2 <- plotSmoothers(sce, counts, gene = feature_id) +
+        labs(colour = "Lineage")
     gg <- plot_grid(gg1, gg2)
 
     # Return graphical object
@@ -299,11 +301,10 @@ get_trajectory_degs <- function(sce,
                                 FUN          = associationTest,
                                 l2fc         = log2(2),
                                 p_val_cutoff = 0.05,
-                                lineages     = TRUE,
                                 top_n        = 10) {
 
     # Get trajectory DEGs
-    res <- FUN(sce, lineages = lineages, l2fc = l2fc)
+    res <- FUN(sce, l2fc = l2fc)
 
     # Filter DEGs
     degs <- res %>%
@@ -355,20 +356,32 @@ gg <- plot_grid(gg1, gg2, ncol = 2)
 gg
 ```
 
-```{r Infer LC trajectories, fig.width = 7, eval = FALSE}
-# Infer trajectories
+```{r Infer LC trajectories, fig.width = 7}
 curves_LC <- infer_trajectories(s_obj_LC, "seurat_clusters")
+```
 
-# Fit GAM
+```{r Fit LC GAM, fig.width = 21}
 sce_LC <- fit_gam(s_obj_LC, curves_LC)
 ```
 
-```{r Get LC trajectory DEGs, fig.height = 70, fig.width = 14, eval = FALSE}
+## DEGs across trajectories
+
+Differential expression across trajectories can be calculated in several ways.
+As the LC trajectories don't have any branches, we'll simply calculated DEGs
+across the trajectory in general, *i.e.* changes across pseudotime. We'll plot
+the top 10 significantly differentially expressed genes.
+
+```{r Get LC trajectory DEGs, fig.height = 70, fig.width = 14}
 # DEGs associated with change across trajectories
 degs_LC <- get_trajectory_degs(sce    = sce_LC,
                                s_obj  = s_obj_LC,
                                curves = curves_LC,
                                FUN    = associationTest)
+```
+
+```{r LC cleanup}
+rm(sce_LC, curves_LC, s_obj_LC)
+invisible(gc())
 ```
 
 # Right cloud
@@ -403,20 +416,52 @@ gg <- plot_grid(gg1, gg2, ncol = 2)
 gg
 ```
 
-```{r Infer RC trajectories, fig.width = 7, eval = FALSE}
-# Infer trajectories
+```{r Infer RC trajectories, fig.width = 7}
 curves_RC <- infer_trajectories(s_obj_RC, "seurat_clusters")
+```
 
-# Fit GAM
+```{r Fit RC GAM, fig.width = 21}
 sce_RC <- fit_gam(s_obj_RC, curves_RC)
 ```
 
-```{r Get RC trajectory DEGs, fig.height = 70, fig.width = 14, eval = FALSE}
+## DEGs across trajectories
+
+We'll start with DEGs associated with change across trajectories in general for
+the RC trajectories, the same as for the LC trajectories.
+
+```{r Get RC trajectory DEGs, fig.height = 70, fig.width = 14}
 # DEGs associated with change across trajectories
 degs_RC <- get_trajectory_degs(sce    = sce_RC,
                                s_obj  = s_obj_RC,
                                curves = curves_RC,
                                FUN    = associationTest)
+```
+
+## DEGs between end points
+
+Since the RC trajectories are branched, we can additionally calculated DEGs for
+different ways across the branches. We'll start with DEGs that differ between
+the end points of the two branches.
+
+```{r Get RC end-point DEGs, fig.height = 70, fig.width = 14}
+# DEGs associated with change across trajectories
+degs_RC <- get_trajectory_degs(sce    = sce_RC,
+                               s_obj  = s_obj_RC,
+                               curves = curves_RC,
+                               FUN    = diffEndTest)
+```
+
+## DEGs between branching points
+
+Let's also find DEGs that are differing at the branching points, rather at the
+end points.
+
+```{r Get RC branching-point DEGs, fig.height = 70, fig.width = 14}
+# DEGs associated with change across trajectories
+degs_RC <- get_trajectory_degs(sce    = sce_RC,
+                               s_obj  = s_obj_RC,
+                               curves = curves_RC,
+                               FUN    = earlyDETest)
 ```
 
 <!-- Remove whitespace at end of document due to using floating ToC -->
