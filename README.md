@@ -19,7 +19,6 @@ The analyses can be reproduced using either Docker or Conda.
 ```bash
 # Build the Docker images
 docker build -t nbis-5568 -f Dockerfile .
-docker build -t nbis-5568-tradeseq -f Dockerfile.tradeseq .
 
 # Run the pre-processing workflow
 nextflow run . -use-docker nbis-5568 -entry pre_processing
@@ -28,6 +27,7 @@ nextflow run . -use-docker nbis-5568 -entry pre_processing
 nextflow run . -use-docker nbis-5568
 
 # Run the trajectory inference workflow
+docker build -t nbis-5568-tradeseq -f Dockerfile.tradeseq .
 nextflow run . -use-docker nbis-5568-tradeseq -entry infer_trajectories
 ```
 
@@ -45,7 +45,6 @@ nextflow run . -entry pre_processing
 nextflow run .
 
 # Run the trajectory inference workflow
-conda deactivate
 conda env create -p 5568-env-tradeseq -f environment-tradeseq.yml
 conda activate 5568-tradeseq-env
 nextflow run . -entry infer_trajectories
