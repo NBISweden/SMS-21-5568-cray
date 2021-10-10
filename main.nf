@@ -21,6 +21,7 @@ workflow {
     report_2_integration = file("bin/report-2-integration-and-markers.Rmd")
     report_3_de = file("bin/report-3-differential-expression.Rmd")
     report_4_plots = file("bin/report-4-features-and-celltypes.Rmd")
+    report_6_subcluster_de = file("bin/report-6-subcluster-de.Rmd")
 
     // Input files
     Channel
@@ -42,6 +43,8 @@ workflow {
                            integration.out.seurat_object,
                            features_to_plot,
                            cluster_cell_types)
+    subcluster_de(report_6_subcluster_de,
+                  features_and_celltypes.out.seurat_object)
 }
 
 process map_transcriptome_ids {
@@ -219,6 +222,36 @@ process features_and_celltypes {
     """
 }
 
+process subcluster_de {
+    // Differential expression analyses for subclusters
+    publishDir "${resultsdir}",
+        mode: "copy",
+        saveAs: { filename ->
+            filename.indexOf(".html") > 0 ? \
+                "${filename}" : "seurat/06-subcluster-de/${filename}"
+        }
+
+    input:
+    path(report)
+    path(seurat_object)
+
+    output:
+    path("report-6-subcluster-de.html")
+    path("*.tsv", optional: true)
+
+    script:
+    """
+    #!/usr/bin/env Rscript
+    parameters <- list(root_directory       = getwd(),
+                       input_seurat_object  = "${seurat_object}")
+    output_report <- gsub(".Rmd", ".html", basename("${report}"))
+    rmarkdown::render("${report}",
+                      params      = parameters,
+                      output_dir  = getwd(),
+                      output_file = output_report)
+    """
+}
+
 
 // Trajectory inference workflow
 workflow infer_trajectories {
@@ -237,7 +270,6 @@ workflow infer_trajectories {
 }
 
 process trajectory_inference {
-    container "nbis-5568-tradeseq"
     publishDir "${resultsdir}/",
         mode: "copy",
         saveAs: { filename ->
