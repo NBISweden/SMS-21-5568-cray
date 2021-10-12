@@ -164,7 +164,7 @@ process differential_expression {
         mode: "copy",
         saveAs: { filename ->
             filename.indexOf(".html") > 0 ? \
-                "${filename}" : "seurat/03-differential-expression/${filename}"
+                "${filename}" : "degs/03-differential-expression/${filename}"
         }
 
     input:
@@ -228,7 +228,7 @@ process subcluster_de {
         mode: "copy",
         saveAs: { filename ->
             filename.indexOf(".html") > 0 ? \
-                "${filename}" : "seurat/06-subcluster-de/${filename}"
+                "${filename}" : "degs/06-subcluster-de/${filename}"
         }
 
     input:
@@ -274,7 +274,7 @@ process trajectory_inference {
         mode: "copy",
         saveAs: { filename ->
             filename.indexOf(".html") > 0 ? \
-                "${filename}" : "seurat/05-trajectory-inference/${filename}"
+                "${filename}" : "degs/05-trajectory-inference/${filename}"
         }
 
     input:
@@ -283,7 +283,7 @@ process trajectory_inference {
 
     output:
     path("report-5-trajectory-inference.html")
-    // path("seurat-trajectory-inference.rds", emit: seurat_object)
+    path("*.tsv", optional: true)
 
     script:
     """

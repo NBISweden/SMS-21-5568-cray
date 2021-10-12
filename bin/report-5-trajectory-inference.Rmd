@@ -298,6 +298,7 @@ plot_trajectory_deg <- function(feature_id,
 get_trajectory_degs <- function(sce,
                                 s_obj,
                                 curves,
+                                output_file,
                                 FUN          = associationTest,
                                 l2fc         = log2(2),
                                 p_val_cutoff = 0.05,
@@ -319,6 +320,11 @@ get_trajectory_degs <- function(sce,
     }
     gg <- plot_grid(plotlist = gg_list, ncol = 1)
     show(gg)
+
+    # Write to file
+    write.table(degs,
+                file      = output_file,
+                sep       = "\t")
 
     # Return list of DEGs
     return(degs)
@@ -356,11 +362,11 @@ gg <- plot_grid(gg1, gg2, ncol = 2)
 gg
 ```
 
-```{r Infer LC trajectories, fig.width = 7}
+```{r Infer LC trajectories, fig.width = 21}
 curves_LC <- infer_trajectories(s_obj_LC, "seurat_clusters")
 ```
 
-```{r Fit LC GAM, fig.width = 21}
+```{r Fit LC GAM}
 sce_LC <- fit_gam(s_obj_LC, curves_LC)
 ```
 
@@ -373,10 +379,11 @@ the top 10 significantly differentially expressed genes.
 
 ```{r Get LC trajectory DEGs, fig.height = 70, fig.width = 14}
 # DEGs associated with change across trajectories
-degs_LC <- get_trajectory_degs(sce    = sce_LC,
-                               s_obj  = s_obj_LC,
-                               curves = curves_LC,
-                               FUN    = associationTest)
+degs_LC <- get_trajectory_degs(sce         = sce_LC,
+                               s_obj       = s_obj_LC,
+                               curves      = curves_LC,
+                               output_file = "degs-LC-trajectory-overall.tsv",
+                               FUN         = associationTest)
 ```
 
 ```{r LC cleanup}
@@ -416,11 +423,11 @@ gg <- plot_grid(gg1, gg2, ncol = 2)
 gg
 ```
 
-```{r Infer RC trajectories, fig.width = 7}
+```{r Infer RC trajectories, fig.width = 21}
 curves_RC <- infer_trajectories(s_obj_RC, "seurat_clusters")
 ```
 
-```{r Fit RC GAM, fig.width = 21}
+```{r Fit RC GAM}
 sce_RC <- fit_gam(s_obj_RC, curves_RC)
 ```
 
@@ -431,10 +438,11 @@ the RC trajectories, the same as for the LC trajectories.
 
 ```{r Get RC trajectory DEGs, fig.height = 70, fig.width = 14}
 # DEGs associated with change across trajectories
-degs_RC <- get_trajectory_degs(sce    = sce_RC,
-                               s_obj  = s_obj_RC,
-                               curves = curves_RC,
-                               FUN    = associationTest)
+degs_RC <- get_trajectory_degs(sce         = sce_RC,
+                               s_obj       = s_obj_RC,
+                               curves      = curves_RC,
+                               output_file = "degs-RC-trajectory-overall.tsv",
+                               FUN         = associationTest)
 ```
 
 ## DEGs between end points
@@ -445,10 +453,11 @@ the end points of the two branches.
 
 ```{r Get RC end-point DEGs, fig.height = 70, fig.width = 14}
 # DEGs associated with change across trajectories
-degs_RC <- get_trajectory_degs(sce    = sce_RC,
-                               s_obj  = s_obj_RC,
-                               curves = curves_RC,
-                               FUN    = diffEndTest)
+degs_RC <- get_trajectory_degs(sce         = sce_RC,
+                               s_obj       = s_obj_RC,
+                               curves      = curves_RC,
+                               output_file = "degs-RC-trajectory-endpoints.tsv",
+                               FUN         = diffEndTest)
 ```
 
 ## DEGs between branching points
@@ -458,10 +467,11 @@ end points.
 
 ```{r Get RC branching-point DEGs, fig.height = 70, fig.width = 14}
 # DEGs associated with change across trajectories
-degs_RC <- get_trajectory_degs(sce    = sce_RC,
-                               s_obj  = s_obj_RC,
-                               curves = curves_RC,
-                               FUN    = earlyDETest)
+degs_RC <- get_trajectory_degs(sce         = sce_RC,
+                               s_obj       = s_obj_RC,
+                               curves      = curves_RC,
+                               output_file = "degs-RC-trajectory-branches.tsv",
+                               FUN         = earlyDETest)
 ```
 
 <!-- Remove whitespace at end of document due to using floating ToC -->
