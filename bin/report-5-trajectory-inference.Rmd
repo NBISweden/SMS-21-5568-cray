@@ -60,54 +60,6 @@ of dimension of change, *e.g.*  differentiation. We thus start with subsetting
 the data to each of the "clouds" and perform trajectory analysis for each cloud.
 
 ```{r Integration functions}
-# Function for re-clustering cells
-# cluster_cells <- function(s_obj,
-                          # nfeatures  = 3000,
-                          # npcs       = 100,
-                          # dims       = 1:50,
-                          # resolution = 0.8) {
-#
-    # # Find the highest variable features
-    # s_obj <- FindVariableFeatures(s_obj,
-                                  # assay            = "RNA",
-                                  # selection.method = "vst",
-                                  # nfeatures        = nfeatures)
-#
-    # # Scale data
-    # to_regress <- c("percent_mito", "nFeature_RNA", "S.Score", "G2M.Score")
-    # s_obj <- ScaleData(s_obj,
-                       # assay           = "RNA",
-                       # vars.to.regress = to_regress)
-#
-    # # Dimensionality reduction and clustering
-    # s_obj <- RunPCA(s_obj,
-                    # npcs     = npcs,
-                    # features = VariableFeatures(object = s_obj))
-    # s_obj <- FindNeighbors(s_obj,
-                           # reduction = "pca",
-                           # dims      = dims,
-                           # verbose   = FALSE)
-    # s_obj <- FindClusters(s_obj,
-                          # reduction  = "pca",
-                          # resolution = resolution,
-                          # verbose    = FALSE)
-#
-    # # Run and plot UMAP
-    # s_obj <- RunUMAP(s_obj,
-                     # dims                 = dims,
-                     # min.dist             = 0.01,
-                     # spread               = 0.3,
-                     # metric               = "cosine",
-                     # n.neighbors          = 15,
-                     # repulsion.strength   = 0.5,
-                     # negative.sample.rate = 20,
-                     # n.epochs             = 100,
-                     # verbose              = FALSE)
-#
-    # # Return Seurat object
-    # return(s_obj)
-# }
-
 # Function to re-integrate and re-cluster data
 integrate_data <- function(s_obj,
                            split_by   = "orig.ident",
@@ -309,6 +261,8 @@ get_trajectory_degs <- function(sce,
 
     # Filter DEGs
     degs <- res %>%
+        mutate(feature = row.names(.)) %>%
+        select(feature, everything()) %>%
         filter(pvalue < p_val_cutoff) %>%
         arrange(desc(waldStat))
 
@@ -324,6 +278,7 @@ get_trajectory_degs <- function(sce,
     # Write to file
     write.table(degs,
                 file      = output_file,
+                row.names = FALSE,
                 sep       = "\t")
 
     # Return list of DEGs
