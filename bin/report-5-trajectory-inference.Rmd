@@ -125,6 +125,7 @@ get_colours_for_trajectory <- function(grouping_values) {
 # Function for getting Slingshot lineages
 infer_trajectories <- function(s_obj,
                                grouping_variable = "seurat_clusters",
+                               start_cluster     = NULL,
                                reduction         = "umap",
                                approx_points     = 300) {
 
@@ -132,6 +133,7 @@ infer_trajectories <- function(s_obj,
     dim_red <- s_obj@reductions[[reduction]]@cell.embeddings
     grouping_values <- factor(s_obj@meta.data[, grouping_variable])
     lineages <- getLineages(data          = dim_red,
+                            start.clus    = start_cluster,
                             clusterLabels = grouping_values)
 
     # Get curves
@@ -379,7 +381,8 @@ gg
 ```
 
 ```{r Infer RC trajectories, fig.width = 21}
-curves_RC <- infer_trajectories(s_obj_RC, "seurat_clusters")
+curves_RC <- infer_trajectories(s_obj_RC, "seurat_clusters",
+                                start_cluster = "3")
 ```
 
 ```{r Fit RC GAM}
