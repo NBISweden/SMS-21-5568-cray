@@ -33,6 +33,7 @@ set.seed(42)
 suppressPackageStartupMessages({
     library("cowplot")
     library("ggplot2")
+    library("RColorBrewer")
     library("scales")
     library("Seurat")
     library("slingshot")
@@ -125,6 +126,7 @@ get_colours_for_trajectory <- function(grouping_values) {
 # Function for getting Slingshot lineages
 infer_trajectories <- function(s_obj,
                                grouping_variable = "seurat_clusters",
+                               plot_pseudotime   = FALSE,
                                start_cluster     = NULL,
                                reduction         = "umap",
                                approx_points     = 300) {
@@ -183,6 +185,44 @@ infer_trajectories <- function(s_obj,
 
     # Return the curves
     return(curves)
+}
+
+# Function to plot pseudotime
+plot_pseudotime <- function(s_obj,
+                            curves,
+                            reduction = "umap") {
+
+    # Get pseudotime values for all lineages
+    dim_red <- s_obj@reductions[[reduction]]@cell.embeddings
+    pseudotime <- as.data.frame(slingPseudotime(curves))
+
+    # Get gradient colours
+    colours <- rev(colorRampPalette(brewer.pal(11, "Spectral")[-6])(100))
+
+    # Initialise plot
+    if (length(colnames(curves)) < 4) {
+        columns <- length(colnames(curves))
+    } else {
+        columns <- 3
+    }
+    par(mfrow = c(1, columns))
+
+    # Loop over lineages
+    for (nn in 1:length(names(pseudotime))) {
+
+        # Get colours fur current lineage
+        lineage <- names(pseudotime)[nn]
+        plot_colours <- colours[cut(pseudotime[[lineage]], breaks = 100)]
+
+        # Plot curves
+        plot(dim_red[, 1:2],
+             col = plot_colours,
+             cex = .5,
+             pch = 16)
+        lines(slingCurves(SlingshotDataSet(curves))[[nn]],
+              lwd = 3,
+              col = "black")
+    }
 }
 ```
 
@@ -323,6 +363,10 @@ gg
 curves_LC <- infer_trajectories(s_obj_LC, "seurat_clusters")
 ```
 
+```{r Plot LC pseudotime, fig.width = 7}
+plot_pseudotime(s_obj_LC, curves_LC)
+```
+
 ```{r Fit LC GAM}
 sce_LC <- fit_gam(s_obj_LC, curves_LC)
 ```
@@ -383,6 +427,10 @@ gg
 ```{r Infer RC trajectories, fig.width = 21}
 curves_RC <- infer_trajectories(s_obj_RC, "seurat_clusters",
                                 start_cluster = "3")
+```
+
+```{r Plot RC pseudotime, fig.width = 14}
+plot_pseudotime(s_obj_RC, curves_RC)
 ```
 
 ```{r Fit RC GAM}
