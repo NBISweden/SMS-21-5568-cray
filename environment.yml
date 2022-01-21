@@ -20,6 +20,7 @@ dependencies:
     - bioconductor-tximport=1.18.0
     - r-argparse=2.0.3
     - r-cowplot=1.1.1
+    - r-languageserver=0.3.12
     - r-seurat=4.0.1
     - r-seuratobject=4.0.1
     - r-spatstat=2.1
