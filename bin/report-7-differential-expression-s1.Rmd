@@ -1,0 +1,311 @@
+---
+params:
+    root_directory: NULL
+    input_seurat_object: NULL
+title: "NBIS Support #5568"
+subtitle: "Differential expression analyses of sample S1"
+author: "Erik Fasterius"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+    html_document:
+        code_folding: hide
+        toc: true
+        toc_float:
+            collapsed: true
+---
+
+Subset the data to only include sample S1, followed by differential expression
+analysis (performed in the same manner as for the whole dataset). The full list
+of all features is included in the output files on the format
+`degs.<cluster>-vs-all.tsv`.
+
+```{r Setup}
+# Knit options
+knitr::opts_knit$set(root.dir = params$root_directory)
+
+# Chunk options
+knitr::opts_chunk$set(fig.width  = 12,
+                      fig.height = 8,
+                      fig.align  = "center",
+                      message    = FALSE,
+                      warning    = FALSE,
+                      results    = "asis")
+
+# Load packages
+suppressPackageStartupMessages({
+    library("cowplot")
+    library("ggplot2")
+    library("MAST")
+    library("Seurat")
+    library("tidyverse")
+})
+
+# Set seed
+set.seed(42)
+```
+
+```{r Plotting functions}
+# Function for plotting basic QC metrics
+plot_qc_metrics <- function(s_obj) {
+    features <- c("nFeature_RNA", "nCount_RNA", "percent_mito", "percent_ribo",
+                  "S.Score", "G2M.Score")
+    gg <- VlnPlot(s_obj,
+                  group.by = "orig.ident",
+                  features = features,
+                  pt.size  = 0.1,
+                  ncol     = 2) +
+        NoLegend()
+    show(gg)
+}
+
+# Function for plotting features versus counts
+plot_features_vs_counts <- function(s_obj) {
+    gg <- FeatureScatter(s_obj,
+                         "nCount_RNA",
+                         "nFeature_RNA",
+                         group.by = "orig.ident",
+                         pt.size  = 0.5) +
+        theme(plot.title = element_text(hjust = 0.5)) +
+        ggtitle("Counts vs. features")
+    show(gg)
+}
+
+# Function for plotting the top 20 highest variable features
+plot_hvg <- function(s_obj) {
+    s_obj_tmp <- FindVariableFeatures(s_obj,
+                                      selection.method = "vst",
+                                      nfeatures        = 20)
+    top_20 <- head(VariableFeatures(s_obj_tmp), 20)
+    gg <- LabelPoints(plot   = VariableFeaturePlot(s_obj_tmp),
+                      points = top_20,
+                      repel  = TRUE) +
+        theme(plot.title = element_text(hjust = 0.5)) +
+        ggtitle("Top 20 variable features")
+    show(gg)
+}
+
+# Function for plotting the top 20 percentage counts per gene
+plot_highest_percentages <- function(s_obj) {
+    counts <- s_obj@assays$RNA@counts
+    counts <- Matrix::t(Matrix::t(counts) / Matrix::colSums(counts)) * 100
+    most_expressed <- order(apply(counts, 1, median), decreasing = TRUE)[20:1]
+    most_expressed <- as.matrix(Matrix::t(counts[most_expressed, ]))
+    par(mar = c(4, 10, 2, 1))
+    boxplot(most_expressed,
+            cex  = 0.1,
+            las  = 1,
+            xlab = "% total count per cell",
+            col  = scales::hue_pal()(20)[20:1], horizontal = TRUE)
+}
+```
+
+```{r Clustering function}
+# Function for trying out different number of variable genes
+cluster_cells <- function(s_obj,
+                          nfeatures    = 3000,
+                          npcs         = 100,
+                          dims         = 50,
+                          resolution   = 0.8,
+                          n_neighbours = 30,
+                          min_dist     = 0.3,
+                          spread       = 1) {
+
+    # Find the highest variable features
+    s_obj <- FindVariableFeatures(s_obj,
+                                  selection.method = "vst",
+                                  nfeatures        = nfeatures)
+
+    # Scale data
+    to_regress <- c("percent_mito", "nFeature_RNA", "S.Score", "G2M.Score")
+    s_obj <- ScaleData(s_obj,
+                       assay           = "RNA",
+                       vars.to.regress = to_regress)
+
+    # Dimensionality reduction and clustering
+    s_obj <- RunPCA(s_obj,
+                    npcs     = npcs,
+                    features = VariableFeatures(object = s_obj))
+    s_obj <- FindNeighbors(s_obj,
+                           reduction = "pca",
+                           dims      = 1:dims,
+                           verbose   = FALSE)
+    s_obj <- FindClusters(s_obj,
+                          resolution = resolution,
+                          verbose    = FALSE)
+
+    # Run and plot UMAP
+    s_obj <- RunUMAP(s_obj,
+                     dims                 = 1:dims,
+                     n.neighbors          = n_neighbours,
+                     min.dist             = min_dist,
+                     spread               = spread,
+                     reduction            = "pca",
+                     metric               = "cosine",
+                     verbose              = FALSE)
+    gg1 <- DimPlot(s_obj, reduction = "umap", group.by = "orig.ident") +
+        ggtitle("Samples")
+    gg2 <- DimPlot(s_obj, reduction = "umap", group.by = "seurat_clusters") +
+        ggtitle("Clusters")
+    gg <- plot_grid(gg1, gg2, ncol = 1)
+    show(gg)
+
+    # Plot selected features on UMAP
+    features <- c("nCount_RNA", "nFeature_RNA", "percent_mito",
+                  "percent_ribo", "S.Score", "G2M.Score")
+    gg <- FeaturePlot(s_obj,
+                      order     = TRUE,
+                      reduction = "umap",
+                      features  = features)
+    show(gg)
+
+    # Return Seurat object
+    return(s_obj)
+}
+```
+
+```{r Read, subset and cluster data, fig.height = 16}
+s_obj <- readRDS(params$input_seurat_object)
+# s_obj <- readRDS("results/seurat/01-quality_controls/seurat-qc.rds")
+s_obj <- subset(s_obj, subset = orig.ident == "S1")
+s_obj <- cluster_cells(s_obj, nfeatures = 2000)
+```
+
+# Differential expression analyses
+
+```{r Differential expression in all clusters}
+# Perform DEA
+markers <- FindAllMarkers(object              = s_obj,
+                          assay               = "RNA",
+                          test.use            = "MAST",
+                          slot                = "data",
+                          latent.vars         = NULL,
+                          min.pct             = 0.1,
+                          logfc.threshold     = 0.25,
+                          return.thresh       = 0.01)
+
+# Re-order columns and fix some gene names
+markers <- markers %>%
+    select(cluster, gene, everything())
+markers$gene <- gsub("\\\\", "-", markers$gene)
+row.names(markers) <- gsub("\\\\", "-", row.names(markers))
+
+# Find top 10 DEGs per cluster
+top_9 <- markers %>%
+    group_by(cluster) %>%
+    top_n(-9, p_val_adj) %>%
+    pull(gene) %>%
+    unique() %>%
+    gsub("\\\\","-", .)
+
+# Plot cluster IDs
+DimPlot(s_obj,
+        reduction = "umap",
+        group.by  = "seurat_clusters",
+        label     = TRUE) +
+    NoAxes() +
+    NoLegend() +
+    ggtitle("Clusters")
+```
+
+## Heatmap
+
+The following is a heatmap for the top nine differentially expressed features in
+each of the clusters. The top features for each cluster is included, which is
+why many more than nine are shown in total. We can see that the genes that are
+included generally have a higher expression than individual transcripts, thus
+contributing more to the clustering of the heatmap.
+
+```{r Heatmap, fig.height = 16}
+DoHeatmap(object   = s_obj,
+          features = top_9,
+          slot     = "data",
+          group.by = "seurat_clusters",
+          assay    = "RNA")
+```
+
+## Dotplot
+
+The following is a dotplot for the top nine differentially expressed features in
+each of the clusters, visualising the expression difference for each feature
+between the clusters of the data.
+
+```{r Dotplot, fig.height = 16}
+DotPlot(object   = s_obj,
+        features = top_9,
+        group.by = "seurat_clusters",
+        assay    = "RNA") +
+    coord_flip()
+```
+
+## Violinplots
+
+The following are violinplots of the top nine differentially expressed features
+of the data, which is another way to highlight differences of feature expression
+between the clusters of the data. Expression is low overall, but a closer view
+of any particular feature shows in which clusters that particular feature is
+expressed. There are not many features that are uniquely expressed in a single
+cluster, but some exist.
+
+```{r Violinplot, fig.height = 40, fig.width = 20}
+VlnPlot(object   = s_obj,
+        features = sort(top_9),
+        ncol     = 5,
+        group.by = "seurat_clusters",
+        assay    = "RNA")
+```
+
+## Expression per cluster
+
+The following figures show the expression of the top 9 differentially expressed
+genes for each cluster in the UMAP of the data, highlighting the location of
+feature expression in UMAP-space. This is another way to highlight feature
+expression in different clusters and what clusters are similar to each other in
+regards to expression of each cluster's most unique features.
+
+```{r Plot top 9 features per cluster}
+# Plot cluster IDs
+DimPlot(s_obj,
+        reduction = "umap",
+        group.by  = "seurat_clusters",
+        label     = TRUE) +
+    NoAxes() +
+    NoLegend() +
+    ggtitle("Clusters")
+
+# Loop over all individual clusters
+for (cluster in sort(unique(markers$cluster))) {
+
+    # Print cluster header
+    cat(paste0("\n\n### Cluster ", cluster, "\n\n"))
+
+    # Get DEGs for current cluster
+    current_markers <- markers[markers$cluster == cluster, ]
+
+    # Write current DEGs to file
+    file <- paste0("degs.cluster-", cluster, "-vs-all.tsv")
+    write.table(current_markers,
+                file      = file,
+                sep       = "\t",
+                row.names = FALSE,
+                quote     = FALSE)
+
+    # Plot top 9 features
+    top_9 <- as.character(current_markers$gene[1:9])
+    plot_list <- FeaturePlot(s_obj,
+                             features = top_9,
+                             order    = TRUE,
+                             combine  = FALSE)
+
+    # Remove all axes and legends
+    for(ii in 1:length(plot_list)) {
+        plot_list[[ii]] <- plot_list[[ii]] +
+            NoLegend() +
+            NoAxes()
+    }
+
+    # Plot in a grid
+    show(cowplot::plot_grid(plotlist = plot_list))
+}
+```
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

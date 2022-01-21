@@ -22,6 +22,7 @@ workflow {
     report_3_de = file("bin/report-3-differential-expression.Rmd")
     report_4_plots = file("bin/report-4-features-and-celltypes.Rmd")
     report_6_subcluster_de = file("bin/report-6-subcluster-de.Rmd")
+    report_7_de = file("bin/report-7-differential-expression-s1.Rmd")
 
     // Input files
     Channel
@@ -45,6 +46,8 @@ workflow {
                            cluster_cell_types)
     subcluster_de(report_6_subcluster_de,
                   features_and_celltypes.out.seurat_object)
+    differential_expression_s1(report_7_de,
+                               quality_controls.out.seurat_object)
 }
 
 process map_transcriptome_ids {
@@ -237,6 +240,36 @@ process subcluster_de {
 
     output:
     path("report-6-subcluster-de.html")
+    path("*.tsv", optional: true)
+
+    script:
+    """
+    #!/usr/bin/env Rscript
+    parameters <- list(root_directory       = getwd(),
+                       input_seurat_object  = "${seurat_object}")
+    output_report <- gsub(".Rmd", ".html", basename("${report}"))
+    rmarkdown::render("${report}",
+                      params      = parameters,
+                      output_dir  = getwd(),
+                      output_file = output_report)
+    """
+}
+
+process differential_expression_s1 {
+    // Differential expression analyses of sample S1
+    publishDir "${resultsdir}",
+        mode: "copy",
+        saveAs: { filename ->
+            filename.indexOf(".html") > 0 ? \
+                "${filename}" : "degs/07-differential-expression-s1/${filename}"
+        }
+
+    input:
+    path(report)
+    path(seurat_object)
+
+    output:
+    path("report-7-differential-expression-s1.html")
     path("*.tsv", optional: true)
 
     script:
