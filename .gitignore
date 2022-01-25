@@ -15,3 +15,4 @@ run.sh
 # Manual data from group
 !data/cell-type-markers.csv
 !data/manual-tx2gene.tsv
+!data/cluster-cell-types.tsv
