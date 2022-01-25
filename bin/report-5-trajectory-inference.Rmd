@@ -328,80 +328,15 @@ get_trajectory_degs <- function(sce,
 }
 ```
 
-# Left cloud
-
-```{r Subset to LC cells}
-# Subset cells and re-integrate
-s_obj_LC <- subset(s_obj, subset = cell_type %in% c("g1",
-                                                    "g2",
-                                                    "g3",
-                                                    "sg1",
-                                                    "sg2"))
-```
-
-```{r Find ideal LC trajectories, fig.width = 21, eval = FALSE, include = FALSE}
-# Run trajectory analyses for each resolution
-resolutions <- seq(0.1, 1.0, 0.1)
-for (resolution in resolutions) {
-    s_obj_LC_current <- integrate_data(s_obj_LC, resolution = resolution)
-    trajectories <- infer_trajectories(s_obj_LC_current)
-}
-```
-
-```{r Integrate LC data}
-# Integrate data
-s_obj_LC <- integrate_data(s_obj_LC, resolution = 0.2)
-
-# Plot cell types
-gg1 <- DimPlot(s_obj_LC, group.by = "seurat_clusters", label = TRUE)
-gg2 <- DimPlot(s_obj_LC, group.by = "cell_type", label = TRUE)
-gg <- plot_grid(gg1, gg2, ncol = 2)
-gg
-```
-
-```{r Infer LC trajectories, fig.width = 21}
-curves_LC <- infer_trajectories(s_obj_LC, "seurat_clusters")
-```
-
-```{r Plot LC pseudotime, fig.width = 7}
-plot_pseudotime(s_obj_LC, curves_LC)
-```
-
-```{r Fit LC GAM}
-sce_LC <- fit_gam(s_obj_LC, curves_LC)
-```
-
-## DEGs across trajectories
-
-Differential expression across trajectories can be calculated in several ways.
-As the LC trajectories don't have any branches, we'll simply calculated DEGs
-across the trajectory in general, *i.e.* changes across pseudotime. We'll plot
-the top 10 significantly differentially expressed genes.
-
-```{r Get LC trajectory DEGs, fig.height = 70, fig.width = 14}
-# DEGs associated with change across trajectories
-degs_LC <- get_trajectory_degs(sce         = sce_LC,
-                               s_obj       = s_obj_LC,
-                               curves      = curves_LC,
-                               output_file = "degs-LC-trajectory-overall.tsv",
-                               FUN         = associationTest)
-```
-
-```{r LC cleanup}
-rm(sce_LC, curves_LC, s_obj_LC)
-invisible(gc())
-```
-
 # Right cloud
 
 ```{r Subset to RC cells}
 # Subset cells and re-integrate
-s_obj_RC <- subset(s_obj, subset = cell_type %in% c("pro_hemocyte_1",
-                                                    "pro_hemocyte_2",
-                                                    "progenitor",
-                                                    "immune_cell",
-                                                    "unknown",
-                                                    "PASIHC"))
+s_obj_RC <- subset(s_obj, subset = cell_type %in% c("g1",
+                                                    "g2",
+                                                    "g3",
+                                                    "sg1",
+                                                    "sg2"))
 ```
 
 ```{r Find ideal RC trajectories, fig.width = 21, eval = FALSE, include = FALSE}
@@ -425,11 +360,10 @@ gg
 ```
 
 ```{r Infer RC trajectories, fig.width = 21}
-curves_RC <- infer_trajectories(s_obj_RC, "seurat_clusters",
-                                start_cluster = "3")
+curves_RC <- infer_trajectories(s_obj_RC, "seurat_clusters")
 ```
 
-```{r Plot RC pseudotime, fig.width = 14}
+```{r Plot RC pseudotime, fig.width = 7}
 plot_pseudotime(s_obj_RC, curves_RC)
 ```
 
@@ -439,8 +373,10 @@ sce_RC <- fit_gam(s_obj_RC, curves_RC)
 
 ## DEGs across trajectories
 
-We'll start with DEGs associated with change across trajectories in general for
-the RC trajectories, the same as for the LC trajectories.
+Differential expression across trajectories can be calculated in several ways.
+As the RC trajectories don't have any branches, we'll simply calculated DEGs
+across the trajectory in general, *i.e.* changes across pseudotime. We'll plot
+the top 10 significantly differentially expressed genes.
 
 ```{r Get RC trajectory DEGs, fig.height = 70, fig.width = 14}
 # DEGs associated with change across trajectories
@@ -451,18 +387,82 @@ degs_RC <- get_trajectory_degs(sce         = sce_RC,
                                FUN         = associationTest)
 ```
 
+```{r RC cleanup}
+rm(sce_RC, curves_RC, s_obj_RC)
+invisible(gc())
+```
+
+# Left cloud
+
+```{r Subset to LC cells}
+# Subset cells and re-integrate
+s_obj_LC <- subset(s_obj, subset = cell_type %in% c("pro_hemocyte_1",
+                                                    "pro_hemocyte_2",
+                                                    "progenitor",
+                                                    "immune_cell",
+                                                    "unknown",
+                                                    "PASIHC"))
+```
+
+```{r Find ideal LC trajectories, fig.width = 21, eval = FALSE, include = FALSE}
+# Run trajectory analyses for each resolution
+resolutions <- seq(0.1, 1.0, 0.1)
+for (resolution in resolutions) {
+    s_obj_LC_current <- integrate_data(s_obj_LC, resolution = resolution)
+    trajectories <- infer_trajectories(s_obj_LC_current)
+}
+```
+
+```{r Integrate LC data}
+# Integrate data
+s_obj_LC <- integrate_data(s_obj_LC, resolution = 0.25)
+
+# Plot cell types
+gg1 <- DimPlot(s_obj_LC, group.by = "seurat_clusters", label = TRUE)
+gg2 <- DimPlot(s_obj_LC, group.by = "cell_type", label = TRUE)
+gg <- plot_grid(gg1, gg2, ncol = 2)
+gg
+```
+
+```{r Infer LC trajectories, fig.width = 21}
+curves_LC <- infer_trajectories(s_obj_LC, "seurat_clusters",
+                                start_cluster = "3")
+```
+
+```{r Plot LC pseudotime, fig.width = 14}
+plot_pseudotime(s_obj_LC, curves_LC)
+```
+
+```{r Fit LC GAM}
+sce_LC <- fit_gam(s_obj_LC, curves_LC)
+```
+
+## DEGs across trajectories
+
+We'll start with DEGs associated with change across trajectories in general for
+the LC trajectories, the same as for the LC trajectories.
+
+```{r Get LC trajectory DEGs, fig.height = 70, fig.width = 14}
+# DEGs associated with change across trajectories
+degs_LC <- get_trajectory_degs(sce         = sce_LC,
+                               s_obj       = s_obj_LC,
+                               curves      = curves_LC,
+                               output_file = "degs-LC-trajectory-overall.tsv",
+                               FUN         = associationTest)
+```
+
 ## DEGs between end points
 
-Since the RC trajectories are branched, we can additionally calculated DEGs for
+Since the LC trajectories are branched, we can additionally calculated DEGs for
 different ways across the branches. We'll start with DEGs that differ between
 the end points of the two branches.
 
-```{r Get RC end-point DEGs, fig.height = 70, fig.width = 14}
+```{r Get LC end-point DEGs, fig.height = 70, fig.width = 14}
 # DEGs associated with change across trajectories
-degs_RC <- get_trajectory_degs(sce         = sce_RC,
-                               s_obj       = s_obj_RC,
-                               curves      = curves_RC,
-                               output_file = "degs-RC-trajectory-endpoints.tsv",
+degs_LC <- get_trajectory_degs(sce         = sce_LC,
+                               s_obj       = s_obj_LC,
+                               curves      = curves_LC,
+                               output_file = "degs-LC-trajectory-endpoints.tsv",
                                FUN         = diffEndTest)
 ```
 
@@ -471,12 +471,12 @@ degs_RC <- get_trajectory_degs(sce         = sce_RC,
 Let's also find DEGs that are differing at the branching points, rather at the
 end points.
 
-```{r Get RC branching-point DEGs, fig.height = 70, fig.width = 14}
+```{r Get LC branching-point DEGs, fig.height = 70, fig.width = 14}
 # DEGs associated with change across trajectories
-degs_RC <- get_trajectory_degs(sce         = sce_RC,
-                               s_obj       = s_obj_RC,
-                               curves      = curves_RC,
-                               output_file = "degs-RC-trajectory-branches.tsv",
+degs_LC <- get_trajectory_degs(sce         = sce_LC,
+                               s_obj       = s_obj_LC,
+                               curves      = curves_LC,
+                               output_file = "degs-LC-trajectory-branches.tsv",
                                FUN         = earlyDETest)
 ```
 

@@ -105,136 +105,15 @@ dimplot_highlight <- function(s_obj,
 }
 ```
 
-# Left cloud
-
-Differential expression is performed for each cluster in the left cloud,
-while excluding all other cluster and cell types from the analysis, as
-visualised in the following plot.
-
-```{r Plot highlighted LC clusters, fig.width = 18}
-# Define LC cell types
-cell_types <- c("g1", "g2", "g3", "sg1", "sg2")
-
-# Plot LC clusters with colours
-exclude_clusters <- s_obj@meta.data %>%
-    filter(!(cell_type %in% cell_types)) %>%
-    pull(seurat_clusters) %>%
-    unique()
-gg1 <- dimplot_highlight(s_obj,
-                         group_by = "seurat_clusters",
-                         exclude  = exclude_clusters)
-
-# Plot LC cell types with colours
-exclude_cell_types <- s_obj@meta.data %>%
-    filter(!(cell_type %in% cell_types)) %>%
-    pull(cell_type) %>%
-    unique()
-gg2 <- dimplot_highlight(s_obj,
-                         group_by = "cell_type",
-                         exclude  = exclude_cell_types)
-
-# Plot in grid
-gg <- plot_grid(gg1, gg2, ncol = 2)
-gg
-```
-
-```{r Subset and perform LC DEA}
-# Subset to LC
-s_obj_LC <- subset_from_metadata(s_obj, "cell_type", cell_types)
-levels(s_obj_LC$cell_type) <- unique(s_obj_LC$cell_type)
-
-# Perform DEA
-markers <- FindAllMarkers(object              = s_obj_LC,
-                          assay               = "RNA",
-                          test.use            = "MAST",
-                          slot                = "data",
-                          latent.vars         = NULL,
-                          min.pct             = 0.1,
-                          logfc.threshold     = 0.25,
-                          return.thresh       = 0.01)
-
-# Fix gene names and re-order columns
-markers <- markers %>%
-    mutate(gene = gsub("\\\\", "_", gene)) %>%
-    select(cluster, gene, everything())
-
-# Find top 10 DEGs per cluster
-top_9 <- markers %>%
-    group_by(cluster) %>%
-    top_n(-9, p_val_adj) %>%
-    pull(gene) %>%
-    unique()
-```
-
-## Dotplot
-
-```{r LC Dotplot}
-DotPlot(object   = s_obj_LC,
-        features = top_9,
-        group.by = "seurat_clusters",
-        assay    = "RNA") +
-    coord_flip()
-```
-
-## Violinplots
-
-```{r LC Violinplot, fig.height = 20, fig.width = 20}
-VlnPlot(object   = s_obj_LC,
-        features = sort(top_9),
-        ncol     = 5,
-        group.by = "seurat_clusters",
-        assay    = "RNA")
-```
-
-## Expression per cluster
-
-```{r Plot top 9 features per LC cluster}
-# Loop over all individual clusters
-for (cluster in sort(unique(markers$cluster))) {
-
-    # Print cluster header
-    cat(paste0("\n\n### Cluster ", cluster, "\n\n"))
-
-    # Get DEGs for current cluster
-    current_markers <- markers[markers$cluster == cluster, ]
-
-    # Write current DEGs to file
-    file <- paste0("degs.cluster-", cluster, "-vs-subclusters.tsv")
-    write.table(current_markers,
-                file      = file,
-                sep       = "\t",
-                row.names = FALSE,
-                quote     = FALSE)
-
-    # Plot top 9 features
-    top_9 <- as.character(current_markers$gene[1:9])
-    plot_list <- FeaturePlot(s_obj,
-                             features = top_9,
-                             order    = TRUE,
-                             combine  = FALSE)
-
-    # Remove all axes and legends
-    for(ii in 1:length(plot_list)) {
-        plot_list[[ii]] <- plot_list[[ii]] +
-            NoLegend() +
-            NoAxes()
-    }
-
-    # Plot in a grid
-    show(cowplot::plot_grid(plotlist = plot_list))
-}
-```
-
 # Right cloud
+
+Differential expression is performed for each cluster in each cloud, while
+excluding all other cluster and cell types from the analysis, as visualised in
+the following plot.
 
 ```{r Plot highlighted RC clusters, fig.width = 18}
 # Define RC cell types
-cell_types <- c("pro_hemocyte_1",
-                "pro_hemocyte_2",
-                "progenitor",
-                "immune_cell",
-                "unknown",
-                "PASIHC")
+cell_types <- c("g1", "g2", "g3", "sg1", "sg2")
 
 # Plot RC clusters with colours
 exclude_clusters <- s_obj@meta.data %>%
@@ -289,7 +168,7 @@ top_9 <- markers %>%
 
 ## Dotplot
 
-```{r RC Dotplot, fig.height = 11}
+```{r RC Dotplot}
 DotPlot(object   = s_obj_RC,
         features = top_9,
         group.by = "seurat_clusters",
@@ -299,7 +178,7 @@ DotPlot(object   = s_obj_RC,
 
 ## Violinplots
 
-```{r RC Violinplot, fig.height = 40, fig.width = 20}
+```{r RC Violinplot, fig.height = 20, fig.width = 20}
 VlnPlot(object   = s_obj_RC,
         features = sort(top_9),
         ncol     = 5,
@@ -310,6 +189,127 @@ VlnPlot(object   = s_obj_RC,
 ## Expression per cluster
 
 ```{r Plot top 9 features per RC cluster}
+# Loop over all individual clusters
+for (cluster in sort(unique(markers$cluster))) {
+
+    # Print cluster header
+    cat(paste0("\n\n### Cluster ", cluster, "\n\n"))
+
+    # Get DEGs for current cluster
+    current_markers <- markers[markers$cluster == cluster, ]
+
+    # Write current DEGs to file
+    file <- paste0("degs.cluster-", cluster, "-vs-subclusters.tsv")
+    write.table(current_markers,
+                file      = file,
+                sep       = "\t",
+                row.names = FALSE,
+                quote     = FALSE)
+
+    # Plot top 9 features
+    top_9 <- as.character(current_markers$gene[1:9])
+    plot_list <- FeaturePlot(s_obj,
+                             features = top_9,
+                             order    = TRUE,
+                             combine  = FALSE)
+
+    # Remove all axes and legends
+    for(ii in 1:length(plot_list)) {
+        plot_list[[ii]] <- plot_list[[ii]] +
+            NoLegend() +
+            NoAxes()
+    }
+
+    # Plot in a grid
+    show(cowplot::plot_grid(plotlist = plot_list))
+}
+```
+
+# Left cloud
+
+```{r Plot highlighted LC clusters, fig.width = 18}
+# Define LC cell types
+cell_types <- c("pro_hemocyte_1",
+                "pro_hemocyte_2",
+                "progenitor",
+                "immune_cell",
+                "unknown",
+                "PASIHC")
+
+# Plot LC clusters with colours
+exclude_clusters <- s_obj@meta.data %>%
+    filter(!(cell_type %in% cell_types)) %>%
+    pull(seurat_clusters) %>%
+    unique()
+gg1 <- dimplot_highlight(s_obj,
+                         group_by = "seurat_clusters",
+                         exclude  = exclude_clusters)
+
+# Plot LC cell types with colours
+exclude_cell_types <- s_obj@meta.data %>%
+    filter(!(cell_type %in% cell_types)) %>%
+    pull(cell_type) %>%
+    unique()
+gg2 <- dimplot_highlight(s_obj,
+                         group_by = "cell_type",
+                         exclude  = exclude_cell_types)
+
+# Plot in grid
+gg <- plot_grid(gg1, gg2, ncol = 2)
+gg
+```
+
+```{r Subset and perform LC DEA}
+# Subset to LC
+s_obj_LC <- subset_from_metadata(s_obj, "cell_type", cell_types)
+levels(s_obj_LC$cell_type) <- unique(s_obj_LC$cell_type)
+
+# Perform DEA
+markers <- FindAllMarkers(object              = s_obj_LC,
+                          assay               = "RNA",
+                          test.use            = "MAST",
+                          slot                = "data",
+                          latent.vars         = NULL,
+                          min.pct             = 0.1,
+                          logfc.threshold     = 0.25,
+                          return.thresh       = 0.01)
+
+# Fix gene names and re-order columns
+markers <- markers %>%
+    mutate(gene = gsub("\\\\", "_", gene)) %>%
+    select(cluster, gene, everything())
+
+# Find top 10 DEGs per cluster
+top_9 <- markers %>%
+    group_by(cluster) %>%
+    top_n(-9, p_val_adj) %>%
+    pull(gene) %>%
+    unique()
+```
+
+## Dotplot
+
+```{r LC Dotplot, fig.height = 11}
+DotPlot(object   = s_obj_LC,
+        features = top_9,
+        group.by = "seurat_clusters",
+        assay    = "RNA") +
+    coord_flip()
+```
+
+## Violinplots
+
+```{r LC Violinplot, fig.height = 40, fig.width = 20}
+VlnPlot(object   = s_obj_LC,
+        features = sort(top_9),
+        ncol     = 5,
+        group.by = "seurat_clusters",
+        assay    = "RNA")
+```
+
+## Expression per cluster
+
+```{r Plot top 9 features per LC cluster}
 # Loop over all individual clusters
 for (cluster in sort(unique(markers$cluster))) {
 
