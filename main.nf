@@ -3,6 +3,7 @@ nextflow.preview.dsl=2
 
 // Workflow paths
 resultsdir = "results/"
+imagedir = "data/images/"
 
 // Analysis workflow
 workflow {
@@ -23,12 +24,18 @@ workflow {
     report_4_plots = file("bin/report-4-features-and-celltypes.Rmd")
     report_6_subcluster_de = file("bin/report-6-subcluster-de.Rmd")
     report_7_de = file("bin/report-7-differential-expression-s1.Rmd")
+    report_8_figures = file("bin/report-8-figures.Rmd")
 
     // Input files
     Channel
         .fromPath("results/expression/TJ-2700-*/", type: "dir")
         .toList()
         .set{gene_expression}
+
+    // Images for the paper
+    Channel
+        .fromPath("data/images/", type: "dir")
+        .set{ch_images}
 
     // Run the workflow
     map_transcriptome_ids(ncbi_transcriptome)
@@ -48,6 +55,9 @@ workflow {
                   features_and_celltypes.out.seurat_object)
     differential_expression_s1(report_7_de,
                                quality_controls.out.seurat_object)
+    figures(report_8_figures,
+            features_and_celltypes.out.seurat_object,
+            ch_images)
 }
 
 process map_transcriptome_ids {
@@ -277,6 +287,38 @@ process differential_expression_s1 {
     #!/usr/bin/env Rscript
     parameters <- list(root_directory       = getwd(),
                        input_seurat_object  = "${seurat_object}")
+    output_report <- gsub(".Rmd", ".html", basename("${report}"))
+    rmarkdown::render("${report}",
+                      params      = parameters,
+                      output_dir  = getwd(),
+                      output_file = output_report)
+    """
+}
+
+process figures {
+    // Create figures for the paper
+    publishDir "${resultsdir}",
+        mode: "copy",
+        saveAs: { filename ->
+            filename.indexOf(".png") > 0 ? \
+                "figures/${filename}" : "${filename}"
+        }
+
+    input:
+    path(report)
+    path(seurat_object)
+    path(image_dir)
+
+    output:
+    path("report-8-figures.html")
+    path("*.png", optional: true)
+
+    script:
+    """
+    #!/usr/bin/env Rscript
+    parameters <- list(root_directory       = getwd(),
+                       input_seurat_object  = "${seurat_object}",
+                       image_dir            = "${image_dir}")
     output_report <- gsub(".Rmd", ".html", basename("${report}"))
     rmarkdown::render("${report}",
                       params      = parameters,
