@@ -156,7 +156,7 @@ F1 <- plot_grid(F1a, F1bcd, nrow = 2,
                 rel_heights = c(1.5, 1),
                 labels      = c("A", NULL),
                 label_size  = 18) +
-    theme(plot.background = element_rect(fill = "white"))
+    theme(panel.background = element_rect(fill = "white", colour = "white"))
 F1
 ggsave("F1.png", F1, dpi = 300, height = 14, width = 21)
 ```
@@ -194,8 +194,7 @@ F2b <- DotPlot(s_obj,
 F2c <- DoHeatmap(s_obj,
                  features = rev(features),
                  group.by = "seurat_clusters",
-                 label    = TRUE,
-                 size     = 4,
+                 label    = FALSE,
                  slot     = "data",
                  assay    = "RNA") +
     scale_colour_discrete(breaks = seq(0, 14)) +
@@ -254,8 +253,7 @@ F3d <- DotPlot(s_obj,
 F3e <- DoHeatmap(s_obj,
                  features = rev(features),
                  group.by = "seurat_clusters",
-                 label    = TRUE,
-                 size     = 4,
+                 label    = FALSE,
                  slot     = "data",
                  assay    = "RNA") +
     scale_colour_discrete(breaks = seq(0, 14)) +
@@ -344,7 +342,7 @@ F7b <- ggdraw()
 
 # List features for Figure 7
 features <- c("Hml", "TGA1", "comp30385-c0", "PXN", "VMO1", "Duox",
-              "comp33777-c0", "comp18871", "lysoz2", "comp36636-c0",
+              "comp33777-c0", "comp18817-c0", "lysoz2", "comp36636-c0",
               "comp36513-c0", "comp36854-c1", "comp37373-c0", "GPX1", "cenB",
               "FLT1", "comp36467-c1", "comp40178-c0" )
 
@@ -360,8 +358,7 @@ F7c <- DotPlot(s_obj,
 F7d <- DoHeatmap(s_obj,
                  features = rev(features),
                  group.by = "seurat_clusters",
-                 label    = TRUE,
-                 size     = 4,
+                 label    = FALSE,
                  slot     = "data",
                  assay    = "RNA") +
     scale_colour_discrete(breaks = seq(0, 14)) +
