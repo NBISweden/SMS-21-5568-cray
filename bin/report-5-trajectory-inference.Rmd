@@ -3,7 +3,7 @@ params:
     root_directory: NULL
     input_seurat_object: NULL
 title: "NBIS Support #5568"
-subtitle: "Features and cell types"
+subtitle: "Trajectory inference"
 author: "Erik Fasterius"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
@@ -330,7 +330,7 @@ get_trajectory_degs <- function(sce,
 
 # Right cloud
 
-```{r Subset to RC cells}
+```{r Subset to RC cells, eval = FALSE}
 # Subset cells and re-integrate
 s_obj_RC <- subset(s_obj, subset = cell_type %in% c("g1",
                                                     "g2",
@@ -348,7 +348,7 @@ for (resolution in resolutions) {
 }
 ```
 
-```{r Integrate RC data}
+```{r Integrate RC data, eval = FALSE}
 # Integrate data
 s_obj_RC <- integrate_data(s_obj_RC, resolution = 0.2)
 
@@ -359,15 +359,15 @@ gg <- plot_grid(gg1, gg2, ncol = 2)
 gg
 ```
 
-```{r Infer RC trajectories, fig.width = 21}
+```{r Infer RC trajectories, fig.width = 21, eval = FALSE}
 curves_RC <- infer_trajectories(s_obj_RC, "seurat_clusters")
 ```
 
-```{r Plot RC pseudotime, fig.width = 7}
+```{r Plot RC pseudotime, fig.width = 7, eval = FALSE}
 plot_pseudotime(s_obj_RC, curves_RC)
 ```
 
-```{r Fit RC GAM}
+```{r Fit RC GAM, eval = FALSE}
 sce_RC <- fit_gam(s_obj_RC, curves_RC)
 ```
 
@@ -378,7 +378,7 @@ As the RC trajectories don't have any branches, we'll simply calculated DEGs
 across the trajectory in general, *i.e.* changes across pseudotime. We'll plot
 the top 10 significantly differentially expressed genes.
 
-```{r Get RC trajectory DEGs, fig.height = 70, fig.width = 14}
+```{r Get RC trajectory DEGs, fig.height = 70, fig.width = 14, eval = FALSE}
 # DEGs associated with change across trajectories
 degs_RC <- get_trajectory_degs(sce         = sce_RC,
                                s_obj       = s_obj_RC,
@@ -387,7 +387,7 @@ degs_RC <- get_trajectory_degs(sce         = sce_RC,
                                FUN         = associationTest)
 ```
 
-```{r RC cleanup}
+```{r RC cleanup, eval = FALSE}
 rm(sce_RC, curves_RC, s_obj_RC)
 invisible(gc())
 ```
@@ -424,9 +424,67 @@ gg <- plot_grid(gg1, gg2, ncol = 2)
 gg
 ```
 
+## Differential expression
+
+```{r Differential expression, fig.height = 14}
+# Perform DEA
+markers <- FindAllMarkers(object              = s_obj_LC,
+                          assay               = "RNA",
+                          slot                = "data",
+                          latent.vars         = NULL,
+                          min.pct             = 0.1,
+                          logfc.threshold     = 0.25,
+                          return.thresh       = 0.01)
+
+# Re-order columns
+markers <- markers %>%
+    select(cluster, gene, everything())
+
+# Loop over all individual clusters
+for (cluster in sort(unique(markers$cluster))) {
+
+    # Print cluster header
+    cat(paste0("\n\n### Cluster ", cluster, "\n\n"))
+
+    # Get DEGs for current cluster
+    current_markers <- markers[markers$cluster == cluster, ]
+
+    # Write current DEGs to file
+    file <- paste0("degs.cluster-", cluster, "-vs-all.tsv")
+    write.table(current_markers,
+                file      = file,
+                sep       = "\t",
+                row.names = FALSE,
+                quote     = FALSE)
+
+    # Plot top 9 features
+    current_top_9 <- current_markers %>%
+        top_n(-40, p_val_adj) %>%
+        top_n(9, avg_log2FC) %>%
+        pull(gene)
+    plot_list <- FeaturePlot(s_obj_LC,
+                             features = current_top_9,
+                             order    = TRUE,
+                             combine  = FALSE)
+
+    # Remove all axes and legends
+    for(ii in 1:length(plot_list)) {
+        plot_list[[ii]] <- plot_list[[ii]] +
+            NoLegend() +
+            NoAxes()
+    }
+
+    # Plot in a grid
+    show(cowplot::plot_grid(plotlist = plot_list))
+}
+knitr::knit_exit()
+```
+
+## Infer trajectories
+
 ```{r Infer LC trajectories, fig.width = 21}
 curves_LC <- infer_trajectories(s_obj_LC, "seurat_clusters",
-                                start_cluster = "3")
+                                start_cluster = "2")
 ```
 
 ```{r Plot LC pseudotime, fig.width = 14}
