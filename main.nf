@@ -57,6 +57,7 @@ workflow {
                                quality_controls.out.seurat_object)
     figures(report_8_figures,
             features_and_celltypes.out.seurat_object,
+            differential_expression_s1.out.seurat_object,
             ch_images)
 }
 
@@ -269,16 +270,20 @@ process differential_expression_s1 {
     // Differential expression analyses of sample S1
     publishDir "${resultsdir}",
         mode: "copy",
-        saveAs: { filename ->
-            filename.indexOf(".html") > 0 ? \
-                "${filename}" : "degs/07-differential-expression-s1/${filename}"
-        }
+        pattern: "*.html"
+    publishDir "${resultsdir}/degs/07-differential-expression-s1/",
+        mode: "copy",
+        pattern: "*.tsv"
+    publishDir "${resultsdir}/seurat/07-de-s1/",
+        mode: "copy",
+        pattern: "*.rds"
 
     input:
     path(report)
     path(seurat_object)
 
     output:
+    path("*.rds", emit: seurat_object)
     path("report-7-differential-expression-s1.html")
     path("*.tsv", optional: true)
 
@@ -286,7 +291,8 @@ process differential_expression_s1 {
     """
     #!/usr/bin/env Rscript
     parameters <- list(root_directory       = getwd(),
-                       input_seurat_object  = "${seurat_object}")
+                       input_seurat_object  = "${seurat_object}",
+                       output_seurat_object = "seurat-s1.rds")
     output_report <- gsub(".Rmd", ".html", basename("${report}"))
     rmarkdown::render("${report}",
                       params      = parameters,
@@ -306,7 +312,8 @@ process figures {
 
     input:
     path(report)
-    path(seurat_object)
+    path(seurat_object_all)
+    path(seurat_object_s1)
     path(image_dir)
 
     output:
@@ -316,9 +323,10 @@ process figures {
     script:
     """
     #!/usr/bin/env Rscript
-    parameters <- list(root_directory       = getwd(),
-                       input_seurat_object  = "${seurat_object}",
-                       image_dir            = "${image_dir}")
+    parameters <- list(root_directory           = getwd(),
+                       input_seurat_object_all  = "${seurat_object_all}",
+                       input_seurat_object_s1   = "${seurat_object_s1}",
+                       image_dir                = "${image_dir}")
     output_report <- gsub(".Rmd", ".html", basename("${report}"))
     rmarkdown::render("${report}",
                       params      = parameters,

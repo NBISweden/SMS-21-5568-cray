@@ -2,6 +2,7 @@
 params:
     root_directory: NULL
     input_seurat_object: NULL
+    output_seurat_object: NULL
 title: "NBIS Support #5568"
 subtitle: "Differential expression analyses of sample S1"
 author: "Erik Fasterius"
@@ -306,6 +307,10 @@ for (cluster in sort(unique(markers$cluster))) {
     # Plot in a grid
     show(cowplot::plot_grid(plotlist = plot_list))
 }
+```
+
+```{r Save seurat object}
+saveRDS(s_obj, file = params$output_seurat_object)
 ```
 
 <div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

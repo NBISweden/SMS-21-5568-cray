@@ -1,7 +1,8 @@
 ---
 params:
     root_directory: NULL
-    input_seurat_object: NULL
+    input_seurat_object_all: NULL
+    input_seurat_object_s1: NULL
     image_dir: NULL
 title: "NBIS Support #5568"
 subtitle: "Figures for the paper"
@@ -47,8 +48,18 @@ palette <- c("#0072B2", "#D55E00")
 
 ```{r Read data}
 # Read data
-s_obj <- readRDS(params$input_seurat_object)
+s_obj <- readRDS(params$input_seurat_object_all)
+s_obj_s1 <- readRDS(params$input_seurat_object_s1)
 # s_obj <- readRDS("results/seurat/04-features-and-celltypes/seurat-features-and-celltypes.rds")
+# s_obj_s1 <- readRDS("results/seurat/07-de-s1/seurat-s1.rds")
+
+# Change cluster IDs for S1 Seurat object
+clusters <- paste0("Hc", s_obj_s1$seurat_clusters)
+names(clusters) <- colnames(s_obj_s1)
+s_obj_s1$seurat_clusters <- NULL
+s_obj_s1 <- AddMetaData(s_obj_s1,
+                        metadata = clusters,
+                        col.name = "seurat_clusters")
 ```
 
 ```{r Pre-processing}
@@ -118,6 +129,43 @@ plot_qc_metrics <- function(s_obj, palette, feature, title) {
 }
 ```
 
+```{r Heatmap function}
+plot_heatmap <- function(s_obj,
+                         features,
+                         group_by = "seurat_clusters",
+                         label    = FALSE,
+                         cluster  = TRUE,
+                         method   = "complete") {
+
+    # Cluster features (if applicable)
+    if (cluster) {
+
+        # Get data for specific features
+        s_obj_data <- GetAssayData(s_obj[["RNA"]], slot = "data")
+        feature_data <- s_obj_data[rownames(s_obj_data) %in% features, ]
+
+        # Create clustering and get feature order
+        s_cluster <- hclust(dist(feature_data), method = method)
+        features <- s_cluster$labels
+    }
+
+    # Plot heatmap
+    gg <- DoHeatmap(s_obj,
+                    features = features,
+                    group.by = group_by,
+                    label    = label,
+                    slot     = "data",
+                    assay    = "RNA") +
+        scale_colour_discrete(breaks = seq(0, 14)) +
+        theme(axis.text = element_text(size = 12)) +
+        theme(legend.text = element_text(size = 12)) +
+        theme(legend.title = element_text(size = 10)) +
+        scale_fill_viridis() +
+        labs(colour = "Cluster")
+    return(gg)
+}
+```
+
 # Figure 1
 
 ```{r Figure 1}
@@ -146,7 +194,6 @@ F1d <- ggplot(distribution, aes(x    = seurat_clusters,
     theme(axis.title = element_text(size = 14)) +
     scale_fill_manual(values = palette) +
     labs(x = "Cluster", y = "Proportion (%)", fill = NULL)
-F1d
 
 # Combine and save
 F1bcd <- plot_grid(F1b, F1c, F1d, ncol = 3,
@@ -165,16 +212,26 @@ ggsave("F1.png", F1, dpi = 300, height = 14, width = 21)
 
 ```{r Figure 2}
 # List features for Figure 1
-features <- c("ASPM",
+features <- c(
+              "ASPM",
               "comp42999-c0",
+              "tpx2-b",
               "comp45345-c0",
               "comp45551-c0",
-              "tpx2-b",
+              "PXN",
               "comp23292-c0",
-              "comp40178-c0",
-              "SPINK4",
+              "Agrn",
+              "Fstl5",
+              "comp36513-c0",
               "comp37373-c0",
-              "comp37480-c1")
+              "comp37480-c1",
+              "comp40178-c0")
+features_dotplot <- c(features,
+                      "comp35405-c0",
+                      "comp36397-c0",
+                      "comp36491-c0",
+                      "comp36467-c1")
+features_dotplot <- sort(features_dotplot)
 
 # Violin-plot, dot-plot and heatmap
 F2a <- VlnPlot(s_obj,
@@ -185,24 +242,13 @@ F2a <- VlnPlot(s_obj,
                assay    = "RNA")
 F2b <- DotPlot(s_obj,
                cols     = c("lightgrey", "steelblue3"),
-               features = features,
+               features = rev(features),
                group.by = "seurat_clusters",
                assay    = "RNA") +
     labs(y = "Cluster", x = NULL) +
     theme(legend.title = element_text(size = 10)) +
     coord_flip()
-F2c <- DoHeatmap(s_obj,
-                 features = rev(features),
-                 group.by = "seurat_clusters",
-                 label    = FALSE,
-                 slot     = "data",
-                 assay    = "RNA") +
-    scale_colour_discrete(breaks = seq(0, 14)) +
-    theme(axis.text = element_text(size = 12)) +
-    theme(legend.text = element_text(size = 12)) +
-    theme(legend.title = element_text(size = 10)) +
-    scale_fill_viridis() +
-    labs(colour = "Cluster")
+F2c <- plot_heatmap(s_obj, features, cluster = FALSE)
 
 # Placeholder
 F2d <- ggdraw()
@@ -236,10 +282,12 @@ F3c <- ggplot() +
     draw_image(paste0(params$image_dir, "/F3c.png"))
 
 # List features for Figure 3
-features <- c("TGA1", "Hml", "comp39731-c0", "His3", "ASPM", "rrm2",
-              "comp45551-c0", "comp45345-c0", "tpx2-b", "porin", "NOP58",
-              "NOP56", "ESYT2", "PACIHC", "comp37556-c1", "CCT8", "PRC1",
-              "BUB1B")
+features <- c("TGA1", "Hml")
+
+              # "comp39731-c0", "His3", "ASPM", "rrm2",
+              # "comp45551-c0", "comp45345-c0", "tpx2-b", "porin", "NOP58",
+              # "NOP56", "ESYT2", "PACIHC", "comp37556-c1", "CCT8", "PRC1",
+              # "BUB1B")
 
 # Dotplot and Heatmap
 F3d <- DotPlot(s_obj,
@@ -264,19 +312,70 @@ F3e <- DoHeatmap(s_obj,
     labs(colour = NULL)
 
 # Combine figures
-F3abc <- plot_grid(F3a, F3b, F3c, ncol = 3, labels = "AUTO")
-F3de <- plot_grid(F3d, F3e, ncol = 2, labels = c("D", "E"))
-F3 <- plot_grid(F3abc, F3de, ncol = 1, rel_heights = c(1, 2)) +
+F3ac <- plot_grid(F3a, F3c, ncol = 1, labels = c("A", "C"))
+F3bd <- plot_grid(F3b, F3d, ncol = 1, labels = c("B", "D"),
+                  rel_heights = c(2.5, 1))
+F3 <- plot_grid(F3ac, F3bd, ncol = 2) +
     theme(panel.background = element_rect(fill = "white", colour = "white"))
 F3
 ggsave("F3.png", F3, dpi = 300, width = 12, height = 10)
+```
+
+# Figure 4
+
+```{r Figure 4}
+# List features for figure 4
+features <- c("PRC1",
+              "BUB1B",
+              "rrm2",
+              "NOP56",
+              "CCT8",
+              "porin",
+              "His3")
+features_dotplot <- c(features,
+                      "TGA1",
+                      "Hml")
+
+# Dotplot and Heatmap
+F4a <- DoHeatmap(s_obj,
+                 features = rev(features),
+                 group.by = "seurat_clusters",
+                 label    = FALSE,
+                 slot     = "data",
+                 assay    = "RNA") +
+    scale_colour_discrete(breaks = seq(0, 14)) +
+    theme(axis.text = element_text(size = 12)) +
+    theme(legend.text = element_text(size = 12)) +
+    theme(legend.title = element_text(size = 10)) +
+    scale_fill_viridis() +
+    labs(colour = NULL)
+F4b <- DotPlot(s_obj,
+               cols     = c("lightgrey", "steelblue3"),
+               features = features_dotplot,
+               group.by = "seurat_clusters",
+               assay    = "RNA") +
+    labs(y = "Cluster", x = NULL) +
+    theme(legend.title = element_text(size = 10)) +
+    coord_flip()
+
+# Placeholder
+F4c <- ggdraw()
+
+# Combine figures
+F4ab <- plot_grid(F4a, F4b, ncol = 2, labels = c("A", "B"))
+F4 <- plot_grid(F4ab, F4c, nrow = 2, labels = c("", "C"),
+                rel_heights = c(1.25, 1)) +
+    theme(panel.background = element_rect(fill = "white", colour = "white"))
+F4
+ggsave("F4.png", F4, dpi = 300, width = 12, height = 10)
+
 ```
 
 # Figure 5
 
 ```{r Figure 5}
 # List features for Figure 5
-features <- c("PACIHC", "tf", "FERH", "yl", "GSTT4", "comp37556-c1")
+features <- c("PACIHC", "tf", "FERH", "yl", "GSTT4")
 
 # Violin-plot
 F5a <- VlnPlot(s_obj,
@@ -336,18 +435,22 @@ ggsave("F6.png", F6, dpi = 300, width = 12, height = 15)
 # Figure 7
 
 ```{r Figure 7}
-# Placeholders
-F7a <- ggdraw()
-F7b <- ggdraw()
-
-# List features for Figure 7
-features <- c("Hml", "TGA1", "comp30385-c0", "PXN", "VMO1", "Duox",
-              "comp33777-c0", "comp18817-c0", "lysoz2", "comp36636-c0",
-              "comp36513-c0", "comp36854-c1", "comp37373-c0", "GPX1", "cenB",
-              "FLT1", "comp36467-c1", "comp40178-c0" )
-
-# Dotplot and Heatmap
-F7c <- DotPlot(s_obj,
+# List features for Figure 7A
+features <- c("VMO1",
+              "cenB",
+              "GPX1",
+              "PXN",
+              "comp37373-c0",
+              "Fstl5",
+              "comp36636-c0",
+              "comp36854-c1",
+              "comp36513-c0",
+              "lysoz2",
+              "comp18817-c0",
+              "FAS2",
+              "PVF",
+              "BR3")
+F7a <- DotPlot(s_obj,
                cols     = c("lightgrey", "steelblue3"),
                features = features,
                group.by = "seurat_clusters",
@@ -355,26 +458,44 @@ F7c <- DotPlot(s_obj,
     labs(y = "Cluster", x = NULL) +
     theme(legend.title = element_text(size = 12)) +
     coord_flip()
-F7d <- DoHeatmap(s_obj,
-                 features = rev(features),
-                 group.by = "seurat_clusters",
-                 label    = FALSE,
-                 slot     = "data",
-                 assay    = "RNA") +
-    scale_colour_discrete(breaks = seq(0, 14)) +
-    theme(axis.text = element_text(size = 12)) +
-    theme(legend.text = element_text(size = 12)) +
+
+# Dimplot
+F7b <- plot_clusters(s_obj_s1)
+
+# List features for Figure 7C
+features <- c("VMO1",
+              "cenB",
+              "PXN",
+              "comp37373-c0",
+              "Fstl5",
+              "comp36636-c0",
+              "comp36854-c1",
+              "comp36513-c0",
+              "lysoz2",
+              "comp18817-c0",
+              "FAS2",
+              "comp40178-c0",
+              "comp23292-c0",
+              "comp36397-c0",
+              "comp35405-c0",
+              "comp36467-c1",
+              "comp36491-c0",
+              "TGA1",
+              "Hml")
+F7c <- DotPlot(s_obj_s1,
+               cols     = c("lightgrey", "steelblue3"),
+               features = features,
+               group.by = "seurat_clusters",
+               assay    = "RNA") +
+    labs(y = "Cluster", x = NULL) +
     theme(legend.title = element_text(size = 12)) +
-    scale_fill_viridis() +
-    labs(colour = NULL)
+    coord_flip()
 
 # Combine and save
-F7ab <- plot_grid(F7a, F7b, ncol = 2, labels = "AUTO")
-F7cd <- plot_grid(F7c, F7d, ncol = 2, labels = c("C", "D"))
-F7 <- plot_grid(F7ab, F7cd, ncol = 1, rel_heights = c(1, 2)) +
+F7 <- plot_grid(F7a, F7b, F7c, nrow = 1, labels = "AUTO") +
     theme(panel.background = element_rect(fill = "white", colour = "white"))
 F7
-ggsave("F7.png", F7, dpi = 300, width = 12, height = 15)
+ggsave("F7.png", F7, dpi = 300, width = 24, height = 8)
 ```
 
 # Supplementary figure 1
@@ -422,20 +543,23 @@ features <- c("ASPM",
               "tpx2-b",
               "comp23292-c0",
               "comp40178-c0",
-              "SPINK4",
               "comp37373-c0",
-              "comp37480-c1")
+              "comp37480-c1",
+              "comp36513-c0",
+              "PXN",
+              "Fstl5",
+              "comp36491-c0")
 SF3a <- FeaturePlot(s_obj,
                     cols     = c("lightgrey", "steelblue3"),
                     order    = TRUE,
-                    features = features)
+                    features = sort(features))
 
 # Second feature-plot
-features <- c("comp36467-c1",
-              "comp36491-c1",
+features <- c("comp36491-c0",
+              "comp23292-c0",
+              "comp36467-c1",
               "comp35405-c0",
               "comp36397-c0",
-              "comp23292-c0",
               "comp40178-c0")
 SF3b <- DotPlot(s_obj,
                cols     = c("lightgrey", "steelblue3"),
@@ -462,10 +586,16 @@ ggsave("SF3.png", SF3, dpi = 300, width = 15, height = 15)
 
 ```{r SFigure 4}
 # List features for SFigure 4
-features <- c("TGA1", "Hml", "comp39731-c0", "His3", "ASPM", "rrm2",
-              "comp45551-c0", "comp45345-c0", "tpx2-b", "porin", "NOP58",
-              "NOP56", "ESYT2", "PACIHC", "comp37556-c1", "CCT8", "PRC1",
-              "BUB1B")
+features <- c("TGA1",
+              "Hml",
+              "His3",
+              "rrm2",
+              "porin",
+              "NOP56",
+              "CCT8",
+              "PRC1",
+              "BUB1B",
+              "Duox")
 
 # Violin-plot
 SF4 <- VlnPlot(s_obj,
@@ -483,18 +613,53 @@ ggsave("SF4.png", SF4, dpi = 300, width = 10, height = 15)
 # Supplementary figure 5
 
 ```{r SFigure 5}
-# Custom image
-SF5a <- ggplot() +
-    theme_void() +
-    # draw_image("../data/figures/SF5a.png")
-    draw_image(paste0(params$image_dir, "/SF5a.png"))
+# List features
+features <- c("comp34672-c0",
+              "comp37556-c1",
+              "comp34822-c0",
+              "comp35190-c0",
+              "comp32323-c0",
+              "comp26921-c0",
+              "comp38616-c0")
 
-# Placeholder
-SF5b <- ggdraw()
+# Feature-plot
+SF5 <- FeaturePlot(s_obj,
+                    cols     = c("lightgrey", "steelblue3"),
+                    ncol     = 3,
+                    order    = TRUE,
+                    features = features)
 
-# Combine and save
-SF5 <- plot_grid(SF5a, SF5b, ncol = 2, labels = "AUTO") +
-    theme(panel.background = element_rect(fill = "white", colour = "white"))
-ggsave("SF5.png", SF5, dpi = 300, width = 10, height = 3)
+# Save to file
+SF5
+ggsave("SF5.png", SF5, dpi = 300, width = 12, height = 12)
 ```
 
+# Supplementary figure 6
+
+```{r SFigure 6}
+# List features
+features <- c("RpL44",
+              "rpl-7",
+              "RpL32",
+              "RpS8",
+              "rpl31",
+              "rpl-3")
+
+# Feature-plots
+SF6a <- FeaturePlot(s_obj,
+                    cols     = c("lightgrey", "steelblue3"),
+                    ncol     = 3,
+                    order    = TRUE,
+                    features = features)
+SF6b <- FeaturePlot(s_obj,
+                    cols     = c("lightgrey", "steelblue3"),
+                    ncol     = 1,
+                    order    = TRUE,
+                    features = "percent_ribo")
+
+# Save to file
+SF6b <- plot_grid(SF6b, NULL, NULL, ncol = 3)
+SF6 <- plot_grid(SF6a, SF6b, ncol = 1, rel_heights = c(2, 1), labels = "AUTO")
+SF6
+ggsave("SF6.png", SF6, dpi = 300, width = 12, height = 12)
+```
