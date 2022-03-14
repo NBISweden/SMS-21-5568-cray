@@ -31,10 +31,11 @@ knitr::opts_chunk$set(fig.width  = 12,
 # Load packages
 suppressPackageStartupMessages({
     library("cowplot")
-    library("tximport")
+    library("kableExtra")
     library("scales")
     library("Seurat")
     library("tidyverse")
+    library("tximport")
     library("viridis")
 })
 
@@ -499,6 +500,14 @@ ggsave("F7.png", F7, dpi = 300, width = 24, height = 8)
 ```
 
 # Supplementary figure 1
+
+```{r Median features/counts}
+s_obj@meta.data[c("orig.ident", "nFeature_RNA", "nCount_RNA")] %>%
+    group_by(orig.ident) %>%
+    summarise(across(everything(), ~ median(.))) %>%
+    kable() %>%
+    kable_styling(bootstrap_options = c("striped", "hover"))
+```
 
 ```{r SFigure 1}
 # Clusters
