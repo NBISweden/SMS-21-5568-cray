@@ -16,3 +16,4 @@ run.sh
 !data/cell-type-markers.csv
 !data/manual-tx2gene.tsv
 !data/cluster-cell-types.tsv
+!data/features-to-plot.tsv
