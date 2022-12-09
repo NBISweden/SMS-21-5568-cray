@@ -177,7 +177,19 @@ F1a <- ggplot() +
     draw_image(paste0(params$image_dir, "/F1a.png"))
 
 # Features and clusters
-F1b <- plot_features_vs_counts(s_obj, palette)
+F1b <- FeatureScatter(s_obj,
+                      "nCount_RNA",
+                      "nFeature_RNA",
+                      cols     = palette,
+                      group.by = "orig.ident",
+                      pt.size  = 0.5) +
+    labs(x     = "Counts",
+         y     = "Number of features",
+         color = NULL) +
+    guides(colour = guide_legend(override.aes = list(size = 4))) +
+    theme(legend.position = "top") +
+    theme(legend.justification = "center") +
+    ggtitle("")
 F1c <- plot_clusters(s_obj)
 
 # Sample proportions
